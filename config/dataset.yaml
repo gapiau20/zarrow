@@ -1,1 +1,3 @@
 # Config of the urls, output dirs for the download etc.
+dataset:
+  name: mimic-iv-clinical
