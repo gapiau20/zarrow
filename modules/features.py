@@ -39,3 +39,12 @@ class FeatureExtractor:
             window_before_minutes (int): minutes before event
         '''
         pass
+
+    def filter_by_first(self, event_times):
+        '''
+        Optional: retrieve the first occurence of an event.
+        Args: 
+            event_times (dict):{subject_id: np.datetime64(event_time)}
+            window_before_minutes (int): minutes before event
+        '''
+        pass

@@ -208,3 +208,5 @@ __marimo__/
 
 #downloaded data
 data/*
+# demo trash python script
+dev.py 
