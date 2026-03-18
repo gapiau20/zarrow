@@ -7,7 +7,7 @@ import shutil
 from pathlib import Path
 import pandas as pd
 
-from .zarr_writer import ZarrWriter
+from .zarr_tools import ZarrWriter
 
 
 class BaseCohort:
@@ -113,12 +113,16 @@ class MIMICIVPatientCohort(BaseCohort):
         #clear the temporary dir once the cohort has been selected
         self.remove_tmp_dir()
         return patient_cohort
-    
+    def clean_types(self,cohort:pd.DataFrame):
+        return 
     def build_and_save(self,zarr_path:str):
         '''
         Build the cohort and save it into a zarr dataset    
         '''
-        cohort=self.build_cohort()
+        #cohort build
+        cohort=self.build_cohort()       
+
+        #zarr writing
         writer=ZarrWriter(zarr_path,self.index_id)
         #features
         writer.write_dataframe(cohort,self.group_name)
