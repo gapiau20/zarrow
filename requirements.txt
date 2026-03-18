@@ -1,0 +1,14 @@
+numpy
+scipy
+wfdb
+pandas
+zarr
+ipykernel
+
+ --extra-index-url https://download.pytorch.org/whl/cu126
+torch
+torchvision
+torchmetrics
+tqdm
+pyyaml
+requests
