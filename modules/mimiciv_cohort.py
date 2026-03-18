@@ -71,14 +71,13 @@ class MIMICIVPatientCohort(ClinicalCohort):
         if len(self.filters)>0:
             for chunk in pd.read_csv(patient_file,chunksize=self.chunk_size):
                 # filter the patients: TODO
+                for f in self.filters:
+                    chunk=f.apply(chunk)
                 if not chunk.empty:
                     patient_cohort.append(chunk)
         #otherwise just keep all patients
         else:
             for chunk in pd.read_csv(patient_file,chunksize=self.chunk_size):
-                # filter the patients: TODO
-                for f in self.filters:
-                    chunk=f.apply(chunk)
                 if not chunk.empty: 
                     patient_cohort.append(chunk)
 

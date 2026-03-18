@@ -13,7 +13,7 @@ class BaseFilter:
     Condition filter to apply on pd.dataframe
     for cohort extraction
     '''
-    def apply(self,df:pd.DataFrame):
+    def apply(self,df:pd.DataFrame)->pd.DataFrame:
         raise NotImplementedError('Implement in daughter class.')
 
 class PatientFilter(BaseFilter):
@@ -42,6 +42,7 @@ class AgeFilter(BaseFilter):
             df=df[df[self.age_column]>=self.age_min]
         if self.age_max is not None:
             df=df[df[self.age_column]<=self.age_max]
+        return df
 
 class ICDFilter(BaseFilter):
     '''
