@@ -6,13 +6,15 @@ import os
 import shutil
 from pathlib import Path
 import pandas as pd
-import zarr
+
+from .zarr_writer import ZarrWriter
 
 
-class ClinicalCohort:
-    def __init__(self,tmp_dir,filters=[]):
+class BaseCohort:
+    def __init__(self,tmp_dir,zarr_index,filters=[]):
         self.tmp_dir=tmp_dir
         self.filters=filters
+        self.zarr_index=zarr_index
     def remove_tmp_dir(self):
         '''
         Clean temporary dir that was used to build the cohort
@@ -24,8 +26,11 @@ class ClinicalCohort:
         Generate the patient cohort for which to extract data then
         '''
         raise NotImplementedError('Implement in a subclass')
+       
+    
 
-class MIMICIVPatientCohort(ClinicalCohort):
+
+class MIMICIVPatientCohort(BaseCohort):
     '''
     Include patients based on criteria from patient characteristics only
 
@@ -41,11 +46,28 @@ class MIMICIVPatientCohort(ClinicalCohort):
     |Filtered patient table|
     +----------------------+    
     ```
+
+    ```
+    cohort.zarr/
+    │
+    ├── patient/
+    │     ├── subject_id      (N,)
+    │     ├── anchor_age      (N,)
+    │     ├── gender          (N,)
+    │
+    ├── admission/
+    │     ├── hadm_id         (N,)
+    │     ├── subject_id      (N,)
+    │     ├── admittime       (N,)
+    │
+    └── index/
+        ├── subject_id      (N,)
+    ```
     
     '''
-    def __init__(self,db,patients_file,admission_file, tmp_dir,chunk_size=64,filters=[]): 
+    def __init__(self,db,patients_file,admission_file, tmp_dir,zarr_index,chunk_size=64,filters=[],group_name='patient',index_id='index/subject_id'): 
         #temporary dir for processing
-        super().__init__(tmp_dir,filters)
+        super().__init__(tmp_dir,zarr_index,filters)
         #attributes
         self.db=db
         self.patients_file=Path(patients_file)
@@ -53,6 +75,9 @@ class MIMICIVPatientCohort(ClinicalCohort):
 
         #for chunks
         self.chunk_size=chunk_size
+        #for zarr saving
+        self.group_name=group_name
+        self.index_id=index_id
 
     def download_files(self): 
         '''Download the necessary csv files to build the clinical cohort'''
@@ -88,3 +113,14 @@ class MIMICIVPatientCohort(ClinicalCohort):
         #clear the temporary dir once the cohort has been selected
         self.remove_tmp_dir()
         return patient_cohort
+    
+    def build_and_save(self,zarr_path:str):
+        '''
+        Build the cohort and save it into a zarr dataset    
+        '''
+        cohort=self.build_cohort()
+        writer=ZarrWriter(zarr_path,self.index_id)
+        #features
+        writer.write_dataframe(cohort,self.group_name)
+        #dataframe
+        writer.write_index(cohort[self.zarr_index].to_numpy())
