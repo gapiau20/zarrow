@@ -177,6 +177,20 @@ class MIMICIVPatientCohort(BaseCohort):
                 diagnoses.append(chunk)
         diagnoses=pd.concat(diagnoses,axis=0)
         return diagnoses,group_key
+    def build_chartevents(self,hadm_ids):
+        #TODO: add chartevents for the selected admissions (e.g. vital signs, etc.)
+        pass
+    def build_labevents(self,hadm_ids):
+        #TODO: add lab values
+        pass
+    def build_procedures(self,hadm_ids):
+        #TODO: add procedure events (e.g. ventilation, vasopressors, etc.)
+        pass
+    def build_icustays(self,hadm_ids):
+        #TODO: add icu stays for the selected admissions
+        pass
+    ################full cohort building and saving into zarr################
+
     def build_cohort(self)->pd.DataFrame:
         #first download the csv_files that can serve to filter the cohort
         self.download_files()
