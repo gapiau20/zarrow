@@ -11,7 +11,16 @@ from .zarr_tools import ZarrWriter
 
 
 class BaseCohort:
-    def __init__(self,tmp_dir,zarr_index,filters=[]):
+    def __init__(self,tmp_dir,zarr_index,filters={}):
+        '''
+        Base class for building a cohort and saving it into a zarr dataset.
+        tmp_dir: temporary directory to store intermediate files during cohort building
+        zarr_index: name of the column to use as index in the zarr dataset (e.g. subject_id)
+        filters: list of filters to apply on the patient table to select the cohort
+        should be a dict with keys as group where the filters apply and values as a list of filter objects 
+        (e.g. PatientFilter, AgeFilter, etc.)
+        e.g. filters={'patient': [AgeFilter(age_min=50), 'sex': SexFilter(sex='M')]}.
+        '''
         self.tmp_dir=tmp_dir
         self.filters=filters
         self.zarr_index=zarr_index
@@ -20,19 +29,29 @@ class BaseCohort:
         Clean temporary dir that was used to build the cohort
         '''
         shutil.rmtree(self.tmp_dir)
+    
+    def apply_filters(self,df:pd.DataFrame,filters:list)->pd.DataFrame:
+        '''
+        Apply a list of filters to a dataframe
+        filters: list of filter objects to apply on the dataframe
+        '''
+        for f in filters:
+            df=f.apply(df)
+        return df
 
-    def build_cohort(self):
+
+    def build_cohort(self,filters:dict)->pd.DataFrame:
         '''
         Generate the patient cohort for which to extract data then
         '''
         raise NotImplementedError('Implement in a subclass')
        
-    def build_patients(self):
+    def build_patients(self,filters:dict):
         '''
         Build the patient table for the cohort, with demographic information and anchor age
         '''
         raise NotImplementedError('Implement in a subclass')
-    def build_admissions(self):
+    def build_admissions(self,filters:dict):
         '''
         Build the admission table for the cohort
         '''
@@ -53,32 +72,37 @@ class MIMICIVPatientCohort(BaseCohort):
          |--->criteria based on patient ID, Age, Gender, Anchor Year
          |
          v
-    +----------------------+      +----------------+
-    |Filtered patient table|      | Admission table|
-    +----------------------+      +----------------+
-         |                                 |
-         |<--- Merge on subject_id---------+
+  
     ```
 
     ```
     cohort.zarr/
     │
-    ├── patient/
-    │     ├── subject_id      (N,)
-    │     ├── anchor_age      (N,)
-    │     ├── gender          (N,)
+    |-- patient/
+    │     |-- subject_id      (N,)
+    │     |-- anchor_age      (N,)
+    |     |--anchor_year     (N,)
+    |     |-- anchor_year_group(N,)
+    |     |-- dod              (N,)
+    │     |-- gender          (N,)
+    |-- demographics/
+    │     |-- subject_id      (N,)
+    │     |-- insurance       (N,)
+    │     |-- language        (N,)
+    │     |-- marital_status  (N,)
+    │     |-- race             (N,)
     │
-    ├── admission/
-    │     ├── hadm_id         (N,)
-    │     ├── subject_id      (N,)
-    │     ├── admittime       (N,)
+    |-- admission/
+    │     |-- hadm_id         (N,)
+    │     |-- subject_id      (N,)
+    │     |-- admittime       (N,)
     │
-    └── index/
-        ├── subject_id      (N,)
+    +-- index/
+        |--subject_id      (N,)
     ```
     
     '''
-    def __init__(self,db,patients_file,admission_file, tmp_dir,zarr_index,chunk_size=64,filters=[],group_name='patient',index_id='index/subject_id'): 
+    def __init__(self,db,patients_file,admission_file, tmp_dir,zarr_index,chunk_size=64,filters={},group_name='patient',index_id='index/subject_id'): 
         #temporary dir for processing
         super().__init__(tmp_dir,zarr_index,filters)
         #attributes
@@ -98,13 +122,15 @@ class MIMICIVPatientCohort(BaseCohort):
         dl_files(self.db,self.tmp_dir,[self.patients_file,self.admission_file],keep_subdirs=True)
 
     def build_patients(self):
+        group_key='patient'
         patient_file = os.path.join(self.tmp_dir, self.patients_file)
+
         # 2. patient table
         patient_cohort = []
-        if len(self.filters) > 0:
+        patient_filters=self.filters.get(group_key,[])
+        if len(patient_filters) > 0:
             for chunk in pd.read_csv(patient_file, chunksize=self.chunk_size):
-                for f in self.filters:
-                    chunk=f.apply(chunk)
+                chunk=self.apply_filters(chunk,patient_filters)
                 if not chunk.empty:
                     patient_cohort.append(chunk)
         #otherwise just keep all patients
@@ -113,47 +139,50 @@ class MIMICIVPatientCohort(BaseCohort):
                 if not chunk.empty: 
                     patient_cohort.append(chunk)
         patient_cohort=pd.concat(patient_cohort,axis=0)
-        return patient_cohort
+        return patient_cohort,group_key
     
     def build_admissions(self,patient_ids):
+        group_key='admission'
         admission_file = os.path.join(self.tmp_dir, self.admission_file)
         admissions_cohort=[]
+        #apply filters on the admission table if specified in the filters dict, otherwise keep all admissions for the selected patients
+        admission_filters=self.filters.get(group_key,[])
+
         for chunk in pd.read_csv(admission_file,chunksize=self.chunk_size):
             chunk=chunk[chunk['subject_id'].isin(patient_ids)]
+            if len(admission_filters)>0:
+                chunk=self.apply_filters(chunk,admission_filters)
             if not chunk.empty:
                 admissions_cohort.append(chunk)
         admissions_cohort=pd.concat(admissions_cohort,axis=0)
-        return admissions_cohort
+        return admissions_cohort,group_key
     
     def build_cohort(self)->pd.DataFrame:
         #first download the csv_files that can serve to filter the cohort
         self.download_files()
         # 1.  build the patient table with demographic information and anchor age
-        patient_cohort=self.build_patients()
+        patient_cohort,patient_cohort_key=self.build_patients()
         # 2. build the admission table for the selected patients
         patient_ids=patient_cohort['subject_id'].unique()
-        admissions_cohort=self.build_admissions(patient_ids)
+        admissions_cohort,admissions_cohort_key=self.build_admissions(patient_ids)
         # 3. build demographics and anchor age for the patient cohort
+        demographics_key='demographics'
         demographics_cols=['subject_id','insurance', 'language', 'marital_status', 'race']
         demographics=admissions_cohort[demographics_cols].drop_duplicates(subset=['subject_id'])
         #remove the demographics from the admission columns
         admissions_cohort=admissions_cohort.drop(columns=demographics_cols[1:]) 
         #clear the temporary dir once the cohort has been selected
         self.remove_tmp_dir()
-        return {'patient':patient_cohort,'admission':admissions_cohort,'demographics':demographics}
-    def clean_types(self,cohort:pd.DataFrame):
-        return 
+        return {patient_cohort_key: patient_cohort, 
+                admissions_cohort_key: admissions_cohort, 
+                demographics_key: demographics}
+    
     def build_and_save(self,zarr_path:str):
         '''
         Build the cohort and save it into a zarr dataset    
         '''
         #cohort build
         cohort = self.build_cohort()
-
-        # TODO (2) : Sauvegarder les données démographiques dans le groupe patient du Zarr
-        # TODO (1) : Sauvegarder la table admission dans le groupe admission du Zarr
-        # TODO (3) : Sauvegarder les lab values filtrés dans le groupe lab du Zarr
-
         #save the cohort into a zarr dataset
         writer = ZarrWriter(zarr_path, self.zarr_index)
         for k in cohort.keys():
