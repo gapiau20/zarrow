@@ -15,3 +15,6 @@ pyyaml
 requests
 
 pytest
+#icd
+icdmap
+icdlookup

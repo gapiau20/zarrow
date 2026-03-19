@@ -15,7 +15,7 @@ class BaseFilter:
     '''
     def apply(self,df:pd.DataFrame)->pd.DataFrame:
         raise NotImplementedError('Implement in daughter class.')
-
+#####Patient filters######
 class PatientFilter(BaseFilter):
     '''
     Filter based only on a list of predefined patients
@@ -44,17 +44,6 @@ class AgeFilter(BaseFilter):
             df=df[df[self.age_column]<=self.age_max]
         return df
 
-class ICDFilter(BaseFilter):
-    '''
-    Filter by sex
-    '''
-    def __init__(self,diag_column, icd_codes):
-        self.diag_column=diag_column
-        self.icd_codes = set(icd_codes)
-
-    def apply(self, df):
-        return df[df[self.diag_column].isin(self.icd_codes)]
-
 class SexFilter(BaseFilter):
     def __init__(self,sex_column,sex):
         super().__init__()
@@ -62,3 +51,22 @@ class SexFilter(BaseFilter):
         self.sex=sex
     def apply(self, df):
         return df[df[self.sex_column]==self.sex]
+    
+###########Diagnostic filters###########
+class ICDFilter(BaseFilter):
+    '''
+    Filter by ICD codes in a given column
+    '''
+    def __init__(self,diag_column, icd_codes):
+        self.diag_column=diag_column
+        self.icd_codes = set( str(icd_code) for icd_code in icd_codes)
+
+    def apply(self, df):
+        mask = pd.Series(False, index=df.index)
+        for code in self.icd_codes:
+            if code.endswith("*"):  # wildcard
+                prefix = code[:-1]   # enlever le '*'
+                mask |= df[self.diag_column].astype(str).str.startswith(prefix)
+            else:
+                mask |= df[self.diag_column].astype(str) == code
+        return df[mask]
