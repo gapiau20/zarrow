@@ -13,3 +13,5 @@ torchmetrics
 tqdm
 pyyaml
 requests
+
+pytest
