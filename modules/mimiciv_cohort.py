@@ -1,6 +1,8 @@
 '''
 Utilities to build cohorts into a zarr database.
 '''
+from importlib.resources import files
+
 from wfdb.io import dl_files
 import os
 import shutil
@@ -127,6 +129,14 @@ class MIMICIVPatientCohort(BaseCohort):
     def download_files(self): 
         '''Download the necessary csv files to build the clinical cohort'''
         os.makedirs(self.tmp_dir,exist_ok=True)
+        #sanity check, if all files already there, skip downloading
+        full_paths = [os.path.join(self.tmp_dir, f) for f in [self.patients_file, self.admission_file, self.diagnoses_file, self.lab_file] if f is not None]
+        for p in full_paths:
+            print("Checking:", p, "->", os.path.exists(p))
+        if all(os.path.exists(p) for p in full_paths):
+            print("Files already present. Skipping download.")
+            return
+        print("Downloading files from PhysioNet...")
         dl_files(self.db,self.tmp_dir,[self.patients_file,
                                        self.admission_file,
                                        self.diagnoses_file,
@@ -250,8 +260,9 @@ class MIMICIVPatientCohort(BaseCohort):
         diagnoses_cohort,diagnoses_cohort_key=self.build_diagnoses(hadm_ids,id_col='hadm_id',group_key='diagnoses',use_cols=None)
         # 5. build labevents table for the selected admissions if needed (e.g. if we want to filter the cohort based on lab values)
         labevents_cohort,labevents_cohort_key=self.build_labevents(hadm_ids,id_col='hadm_id',group_key='labevents',use_cols=None)
+
         #clear the temporary dir once the cohort has been selected
-        self.remove_tmp_dir()
+        # self.remove_tmp_dir() #commented out for now for debugging purposes, but should be uncommented in production to avoid filling up the disk with temporary files TODO
         return {patient_cohort_key: patient_cohort, 
                 admissions_cohort_key: admissions_cohort, 
                 demographics_key: demographics,
