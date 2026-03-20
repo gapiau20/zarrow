@@ -104,7 +104,12 @@ class MIMICIVPatientCohort(BaseCohort):
     ```
     
     '''
-    def __init__(self,db,patients_file,admission_file,diagnoses_file, tmp_dir,zarr_index,chunk_size=64,filters={},group_name='patient',index_id='index/subject_id'): 
+    def __init__(self,db,
+                 patients_file,
+                 admission_file,
+                 diagnoses_file, 
+                 lab_file,
+                 tmp_dir,zarr_index,chunk_size=64,filters={},group_name='patient',index_id='index/subject_id'): 
         #temporary dir for processing
         super().__init__(tmp_dir,zarr_index,filters)
         #attributes
@@ -112,6 +117,7 @@ class MIMICIVPatientCohort(BaseCohort):
         self.patients_file=Path(patients_file)
         self.admission_file=Path(admission_file)
         self.diagnoses_file=Path(diagnoses_file)
+        self.lab_file=Path(lab_file)
         #for chunks
         self.chunk_size=chunk_size
         #for zarr saving
@@ -123,7 +129,8 @@ class MIMICIVPatientCohort(BaseCohort):
         os.makedirs(self.tmp_dir,exist_ok=True)
         dl_files(self.db,self.tmp_dir,[self.patients_file,
                                        self.admission_file,
-                                       self.diagnoses_file],keep_subdirs=True)
+                                       self.diagnoses_file,
+                                       self.lab_file],keep_subdirs=True)
 
     def build_patients(self):
         group_key='patient'
@@ -167,14 +174,14 @@ class MIMICIVPatientCohort(BaseCohort):
                 cohort.append(chunk)
         cohort=pd.concat(cohort,axis=0)
         return cohort, group_key
-    def build_admissions(self, patient_ids,id_col='subject_id',group_key='admission',use_cols=['hadm_id','subject_id','admittime','insurance', 'language', 'marital_status']):
+    def build_admissions(self, patient_ids,id_col='subject_id',group_key='admission',use_cols=None):
         return self._build_from_csv(os.path.join(self.tmp_dir, self.admission_file),
                                    id_col=id_col,
                                    ids=patient_ids,
                                    group_key=group_key,
                                    use_cols=use_cols)
     
-    def build_diagnoses(self, hadm_ids ,id_col='hadm_id',group_key='diagnoses',use_cols=['hadm_id','icd_code']):
+    def build_diagnoses(self, hadm_ids ,id_col='hadm_id',group_key='diagnoses',use_cols=None): 
         def _normalize_icd_code(df):
             df['icd_code']=df['icd_code'].apply(normalize_icd_code)
             return df
@@ -185,44 +192,15 @@ class MIMICIVPatientCohort(BaseCohort):
                                    group_key=group_key,
                                    use_cols=use_cols,
                                    extra_processing=extra_processing)
-    # def build_admissions(self,patient_ids):
-    #     group_key='admission'
-    #     admission_file = os.path.join(self.tmp_dir, self.admission_file)
-    #     admissions_cohort=[]
-    #     #apply filters on the admission table if specified in the filters dict, otherwise keep all admissions for the selected patients
-    #     admission_filters=self.filters.get(group_key,[])
-
-    #     for chunk in pd.read_csv(admission_file,chunksize=self.chunk_size):
-    #         chunk=chunk[chunk['subject_id'].isin(patient_ids)]
-    #         if len(admission_filters)>0:
-    #             chunk=self.apply_filters(chunk,admission_filters)
-    #         if not chunk.empty:
-    #             admissions_cohort.append(chunk)
-    #     admissions_cohort=pd.concat(admissions_cohort,axis=0)
-    #     return admissions_cohort,group_key
-    # def build_diagnoses(self,hadm_ids):
-    #     #TODO: implement if we want to filter the cohort based on diagnoses (e.g. only keep patients with a certain diagnosis code)
-    #     group_key='diagnoses'
-    #     diagnoses_file = os.path.join(self.tmp_dir, self.diagnoses_file)
-    #     diagnoses=[]
-    #     #apply filters on the diagnoses table if specified in the filters dict, otherwise keep all diagnoses for the selected admissions
-    #     diagnosis_filters=self.filters.get(group_key,[])
-    #     for chunk in pd.read_csv(diagnoses_file,chunksize=self.chunk_size):
-    #         chunk=chunk[chunk['hadm_id'].isin(hadm_ids)]
-    #         if len(diagnosis_filters)>0:
-    #             chunk=self.apply_filters(chunk,diagnosis_filters)
-    #         if not chunk.empty:
-    #             # TODO make more modular: normalize icd column
-    #             chunk['icd_code']=chunk['icd_code'].apply(normalize_icd_code)
-    #             diagnoses.append(chunk)
-    #     diagnoses=pd.concat(diagnoses,axis=0)
-    #     return diagnoses,group_key
-    
+    def build_labevents(self, hadm_ids ,id_col='hadm_id',group_key='labevents',use_cols=None):
+        return self._build_from_csv(os.path.join(self.tmp_dir, self.lab_file),
+                                   id_col=id_col,
+                                   ids=hadm_ids,
+                                   group_key=group_key,
+                                   use_cols=use_cols
+                                )   
     def build_chartevents(self,hadm_ids):
         #TODO: add chartevents for the selected admissions (e.g. vital signs, etc.)
-        pass
-    def build_labevents(self,hadm_ids):
-        #TODO: add lab values
         pass
     def build_procedures(self,hadm_ids):
         #TODO: add procedure events (e.g. ventilation, vasopressors, etc.)
@@ -241,7 +219,7 @@ class MIMICIVPatientCohort(BaseCohort):
         patient_ids=patient_cohort['subject_id'].unique()
         admissions_cohort,admissions_cohort_key=self.build_admissions(patient_ids,id_col='subject_id',
                                                                       group_key='admission',
-                                                                      use_cols=['hadm_id','subject_id','admittime','insurance', 'language', 'marital_status','race'])
+                                                                      use_cols=None)
         # 3. build demographics and anchor age for the patient cohort
         demographics_key='demographics'
         demographics_cols=['subject_id','insurance', 'language', 'marital_status', 'race']
@@ -251,13 +229,16 @@ class MIMICIVPatientCohort(BaseCohort):
 
         # 4. build diagnoses table for the selected admissions if needed (e.g. if we want to filter the cohort based on diagnoses)
         hadm_ids=admissions_cohort['hadm_id'].unique()
-        diagnoses_cohort,diagnoses_cohort_key=self.build_diagnoses(hadm_ids,id_col='hadm_id',group_key='diagnoses',use_cols=['hadm_id','icd_code'])
+        diagnoses_cohort,diagnoses_cohort_key=self.build_diagnoses(hadm_ids,id_col='hadm_id',group_key='diagnoses',use_cols=None)
+        # 5. build labevents table for the selected admissions if needed (e.g. if we want to filter the cohort based on lab values)
+        labevents_cohort,labevents_cohort_key=self.build_labevents(hadm_ids,id_col='hadm_id',group_key='labevents',use_cols=None)
         #clear the temporary dir once the cohort has been selected
         self.remove_tmp_dir()
         return {patient_cohort_key: patient_cohort, 
                 admissions_cohort_key: admissions_cohort, 
                 demographics_key: demographics,
-                diagnoses_cohort_key: diagnoses_cohort}
+                diagnoses_cohort_key: diagnoses_cohort,
+                labevents_cohort_key: labevents_cohort}
     
     def build_and_save(self,zarr_path:str):
         '''
