@@ -193,12 +193,30 @@ class MIMICIVPatientCohort(BaseCohort):
                                    use_cols=use_cols,
                                    extra_processing=extra_processing)
     def build_labevents(self, hadm_ids ,id_col='hadm_id',group_key='labevents',use_cols=None):
+        def max_value(uom):
+            if uom in ['mg/dL', 'mg/dl']:
+                return 30
+            elif uom in ['µmol/L', 'umol/L']:
+                return 2655
+            else:
+                return 1e6  # default max value for unknown units
+   
+        def clean_labevents(df):
+            # nettoyage des valeurs aberrantes
+            df = df[pd.to_numeric(df['valuenum'], errors='coerce').notnull()]
+            df = df[df['valuenum'] >= 0]
+
+            # filtrage max selon unité (ex: mg/dL ou µmol/L pour creatinine)
+            
+            df = df[df['valuenum'] <= df['valueuom'].apply(max_value)]
+            return df
+    
         return self._build_from_csv(os.path.join(self.tmp_dir, self.lab_file),
                                    id_col=id_col,
                                    ids=hadm_ids,
                                    group_key=group_key,
-                                   use_cols=use_cols
-                                )   
+                                   use_cols=use_cols,
+                                   extra_processing=clean_labevents)   
     def build_chartevents(self,hadm_ids):
         #TODO: add chartevents for the selected admissions (e.g. vital signs, etc.)
         pass

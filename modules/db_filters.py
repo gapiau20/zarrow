@@ -82,6 +82,7 @@ class EventFilter(BaseFilter):
 
     def apply(self, df):
         return df[df[self.event_column].isin(self.events)]
+    
 class LabEventFilter(EventFilter):
     '''
     Filter by lab events in a given column
@@ -101,3 +102,10 @@ class MedicationFilter(EventFilter):
     '''
     def __init__(self,medication_event_column, medication_events):
         super().__init__(medication_event_column, medication_events)
+        
+class CharteventFilter(EventFilter):
+    '''
+    Filter by chartevents in a given column
+    '''
+    def __init__(self,chartevent_column, chartevents):
+        super().__init__(chartevent_column, chartevents)
