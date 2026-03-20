@@ -70,3 +70,34 @@ class ICDFilter(BaseFilter):
             else:
                 mask |= df[self.diag_column].astype(str) == code
         return df[mask]
+
+##########EVent filters###########
+class EventFilter(BaseFilter):
+    '''
+    Filter by event in a given column
+    '''
+    def __init__(self,event_column, events):
+        self.event_column=event_column
+        self.events = set(events)
+
+    def apply(self, df):
+        return df[df[self.event_column].isin(self.events)]
+class LabEventFilter(EventFilter):
+    '''
+    Filter by lab events in a given column
+    '''
+    def __init__(self,lab_event_column, lab_events):
+        super().__init__(lab_event_column, lab_events)
+
+class ProcedureFilter(EventFilter):
+    '''
+    Filter by procedure events in a given column
+    '''
+    def __init__(self,procedure_event_column, procedure_events):
+        super().__init__(procedure_event_column, procedure_events)
+class MedicationFilter(EventFilter):
+    '''
+    Filter by medication events in a given column
+    '''
+    def __init__(self,medication_event_column, medication_events):
+        super().__init__(medication_event_column, medication_events)

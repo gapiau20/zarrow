@@ -210,3 +210,5 @@ __marimo__/
 data/*
 # demo trash python script
 dev.py 
+#copy paste all py  filles of the project for prompting
+dump.py

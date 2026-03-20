@@ -145,38 +145,79 @@ class MIMICIVPatientCohort(BaseCohort):
         patient_cohort=pd.concat(patient_cohort,axis=0)
         return patient_cohort,group_key
     
-    def build_admissions(self,patient_ids):
-        group_key='admission'
-        admission_file = os.path.join(self.tmp_dir, self.admission_file)
-        admissions_cohort=[]
-        #apply filters on the admission table if specified in the filters dict, otherwise keep all admissions for the selected patients
-        admission_filters=self.filters.get(group_key,[])
+    def _build_from_csv(self,file_path, id_col, ids, group_key, use_cols=None,extra_processing=None):
+        '''
+        Generic function to build a cohort from a csv file based on a list of ids to keep and filters to apply.
+        file_path: path to the csv file
+        id_col: name of the column containing the ids to filter on (e.g. subject_id, hadm_id, etc.)
+        ids: list of ids to keep
+        group_key: key in the filters dict corresponding to the group (e.g. 'patient', 'admission', etc.)
+        use_cols: list of columns to read from the csv file (if None, read all columns)
+        extra_processing: function to apply on the dataframe after filtering (e.g. for additional processing such as normalizing icd codes, etc.)
+        '''
+        cohort = []
+        filters=self.filters.get(group_key,[])
+        for chunk in pd.read_csv(file_path,chunksize=self.chunk_size,usecols=use_cols):
+            chunk=chunk[chunk[id_col].isin(ids)]
+            if len(filters)>0:
+                chunk=self.apply_filters(chunk,filters)
+            if extra_processing is not None:
+                chunk=extra_processing(chunk)
+            if not chunk.empty:
+                cohort.append(chunk)
+        cohort=pd.concat(cohort,axis=0)
+        return cohort, group_key
+    def build_admissions(self, patient_ids,id_col='subject_id',group_key='admission',use_cols=['hadm_id','subject_id','admittime','insurance', 'language', 'marital_status']):
+        return self._build_from_csv(os.path.join(self.tmp_dir, self.admission_file),
+                                   id_col=id_col,
+                                   ids=patient_ids,
+                                   group_key=group_key,
+                                   use_cols=use_cols)
+    
+    def build_diagnoses(self, hadm_ids ,id_col='hadm_id',group_key='diagnoses',use_cols=['hadm_id','icd_code']):
+        def _normalize_icd_code(df):
+            df['icd_code']=df['icd_code'].apply(normalize_icd_code)
+            return df
+        extra_processing=_normalize_icd_code
+        return self._build_from_csv(os.path.join(self.tmp_dir, self.diagnoses_file),
+                                   id_col=id_col,
+                                   ids=hadm_ids,
+                                   group_key=group_key,
+                                   use_cols=use_cols,
+                                   extra_processing=extra_processing)
+    # def build_admissions(self,patient_ids):
+    #     group_key='admission'
+    #     admission_file = os.path.join(self.tmp_dir, self.admission_file)
+    #     admissions_cohort=[]
+    #     #apply filters on the admission table if specified in the filters dict, otherwise keep all admissions for the selected patients
+    #     admission_filters=self.filters.get(group_key,[])
 
-        for chunk in pd.read_csv(admission_file,chunksize=self.chunk_size):
-            chunk=chunk[chunk['subject_id'].isin(patient_ids)]
-            if len(admission_filters)>0:
-                chunk=self.apply_filters(chunk,admission_filters)
-            if not chunk.empty:
-                admissions_cohort.append(chunk)
-        admissions_cohort=pd.concat(admissions_cohort,axis=0)
-        return admissions_cohort,group_key
-    def build_diagnoses(self,hadm_ids):
-        #TODO: implement if we want to filter the cohort based on diagnoses (e.g. only keep patients with a certain diagnosis code)
-        group_key='diagnoses'
-        diagnoses_file = os.path.join(self.tmp_dir, self.diagnoses_file)
-        diagnoses=[]
-        #apply filters on the diagnoses table if specified in the filters dict, otherwise keep all diagnoses for the selected admissions
-        diagnosis_filters=self.filters.get(group_key,[])
-        for chunk in pd.read_csv(diagnoses_file,chunksize=self.chunk_size):
-            chunk=chunk[chunk['hadm_id'].isin(hadm_ids)]
-            if len(diagnosis_filters)>0:
-                chunk=self.apply_filters(chunk,diagnosis_filters)
-            if not chunk.empty:
-                # TODO make more modular: normalize icd column
-                chunk['icd_code']=chunk['icd_code'].apply(normalize_icd_code)
-                diagnoses.append(chunk)
-        diagnoses=pd.concat(diagnoses,axis=0)
-        return diagnoses,group_key
+    #     for chunk in pd.read_csv(admission_file,chunksize=self.chunk_size):
+    #         chunk=chunk[chunk['subject_id'].isin(patient_ids)]
+    #         if len(admission_filters)>0:
+    #             chunk=self.apply_filters(chunk,admission_filters)
+    #         if not chunk.empty:
+    #             admissions_cohort.append(chunk)
+    #     admissions_cohort=pd.concat(admissions_cohort,axis=0)
+    #     return admissions_cohort,group_key
+    # def build_diagnoses(self,hadm_ids):
+    #     #TODO: implement if we want to filter the cohort based on diagnoses (e.g. only keep patients with a certain diagnosis code)
+    #     group_key='diagnoses'
+    #     diagnoses_file = os.path.join(self.tmp_dir, self.diagnoses_file)
+    #     diagnoses=[]
+    #     #apply filters on the diagnoses table if specified in the filters dict, otherwise keep all diagnoses for the selected admissions
+    #     diagnosis_filters=self.filters.get(group_key,[])
+    #     for chunk in pd.read_csv(diagnoses_file,chunksize=self.chunk_size):
+    #         chunk=chunk[chunk['hadm_id'].isin(hadm_ids)]
+    #         if len(diagnosis_filters)>0:
+    #             chunk=self.apply_filters(chunk,diagnosis_filters)
+    #         if not chunk.empty:
+    #             # TODO make more modular: normalize icd column
+    #             chunk['icd_code']=chunk['icd_code'].apply(normalize_icd_code)
+    #             diagnoses.append(chunk)
+    #     diagnoses=pd.concat(diagnoses,axis=0)
+    #     return diagnoses,group_key
+    
     def build_chartevents(self,hadm_ids):
         #TODO: add chartevents for the selected admissions (e.g. vital signs, etc.)
         pass
@@ -198,7 +239,9 @@ class MIMICIVPatientCohort(BaseCohort):
         patient_cohort,patient_cohort_key=self.build_patients()
         # 2. build the admission table for the selected patients
         patient_ids=patient_cohort['subject_id'].unique()
-        admissions_cohort,admissions_cohort_key=self.build_admissions(patient_ids)
+        admissions_cohort,admissions_cohort_key=self.build_admissions(patient_ids,id_col='subject_id',
+                                                                      group_key='admission',
+                                                                      use_cols=['hadm_id','subject_id','admittime','insurance', 'language', 'marital_status','race'])
         # 3. build demographics and anchor age for the patient cohort
         demographics_key='demographics'
         demographics_cols=['subject_id','insurance', 'language', 'marital_status', 'race']
@@ -208,7 +251,7 @@ class MIMICIVPatientCohort(BaseCohort):
 
         # 4. build diagnoses table for the selected admissions if needed (e.g. if we want to filter the cohort based on diagnoses)
         hadm_ids=admissions_cohort['hadm_id'].unique()
-        diagnoses_cohort,diagnoses_cohort_key=self.build_diagnoses(hadm_ids)
+        diagnoses_cohort,diagnoses_cohort_key=self.build_diagnoses(hadm_ids,id_col='hadm_id',group_key='diagnoses',use_cols=['hadm_id','icd_code'])
         #clear the temporary dir once the cohort has been selected
         self.remove_tmp_dir()
         return {patient_cohort_key: patient_cohort, 
