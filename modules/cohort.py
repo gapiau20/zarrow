@@ -3,7 +3,7 @@ import shutil
 import pandas as pd
 
 import os
-from modules.zarr_tools import ZarrWriter
+from modules.zarr_tools import ZarrWriter,ZarrLoader
 
 from modules.db_filters import register_filters
 from modules.db_processors import DatabaseProcessor, register_database_processors
@@ -47,7 +47,7 @@ def get_schema_from_config(config_path):
 
 
 class BaseCohort:
-    def __init__(self,tmp_dir:str,zarr_index_name:str,schema={}):
+    def __init__(self,tmp_dir:str,zarr_index_name:str,schema={},chunk_size:int=64):
         '''
         Base class for building a cohort and saving it into a zarr dataset.
         tmp_dir: temporary directory to store intermediate files during cohort building
@@ -61,6 +61,7 @@ class BaseCohort:
         self.schema=schema
         self.db=self.schema['name']
         self.zarr_index=zarr_index_name
+        self.chunk_size=chunk_size
 
         #create processors for each group in the schema and add the filters to the procesors
         self.processors={}
@@ -101,19 +102,6 @@ class BaseCohort:
         '''
         shutil.rmtree(self.tmp_dir)
 
-    def process_csv_chunk(self,file_path:str,processor:DatabaseProcessor)->pd.DataFrame:
-        '''
-        Generic function to process a csv file in chunks and apply the processor to each chunk.
-        file_path: path to the csv file
-        processor: processor to apply to each chunk (should be a subclass of DatabaseProcessor)
-        '''
-        cohort = []
-        for chunk in pd.read_csv(file_path,chunksize=self.chunk_size):
-            processed_chunk, zarr_index = processor.process(chunk)
-            if not processed_chunk.empty:
-                cohort.append(processed_chunk)
-        cohort=pd.concat(cohort,axis=0)
-        return cohort
     
     def download_file(self,file:str):
         raise NotImplementedError("This method should be implemented in the subclass to download the necessary files to build the cohort.")
@@ -128,8 +116,8 @@ class BaseCohort:
             dataset_csv_file=self.schema[p]['file']
             self.download_file(dataset_csv_file)
             print(f'Filters to apply: {self.processors[p].filters}')
-            df=self.process_csv_chunk(os.path.join(self.tmp_dir, dataset_csv_file), self.processors[p])
-            cohort[p]=df
+            group=self.process_chunks(os.path.join(self.tmp_dir, dataset_csv_file), self.processors[p])
+            cohort[p]=group
         # self.remove_tmp_dir() #commented out for now for debugging purposes, but should be uncommented in production to avoid filling up the disk with temporary files TODO
         return cohort
     
@@ -144,3 +132,27 @@ class BaseCohort:
         for k in cohort.keys():
             writer.write_dataframe(cohort[k], k)
         writer.write_index(cohort['patient'][self.zarr_index].to_numpy())
+
+    def load(self, groups:list[str],zarr_path:str):
+        if not os.path.exists(zarr_path):
+            print('Building cohort at: {zarr_path}')
+            self.build_and_save(zarr_path)
+        print('Loading cohort from {zarr_path}')
+        loader=ZarrLoader(zarr_path)
+        return {g:loader.load_group(g,as_df=False) for g in groups}
+
+class TabularCohort(BaseCohort):
+    def process_chunks(self,file_path:str,processor:DatabaseProcessor)->pd.DataFrame:
+        '''
+        Generic function to process a csv file in chunks and apply the processor to each chunk.
+        file_path: path to the csv file
+        processor: processor to apply to each chunk (should be a subclass of DatabaseProcessor)
+        '''
+        cohort = []
+        for chunk in pd.read_csv(file_path,chunksize=self.chunk_size):
+            processed_chunk, zarr_index = processor.process(chunk)
+            if not processed_chunk.empty:
+                cohort.append(processed_chunk)
+        cohort=pd.concat(cohort,axis=0)
+        return cohort
+    

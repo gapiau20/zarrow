@@ -5,7 +5,7 @@ based on their demographics and lab values (e.g. troponin levels, itemid 50912).
 The obtained cohort is then used to develop and assess a machine learning model for mortality prediction.
 '''
 
-from modules.mimic_clinical_cohort import MIMICPatientCohort
+from modules.mimic_clinical_cohort import PhysioNetPatientCohort
 from modules.db_filters import AgeFilter,SexFilter,ICDFilter,LabEventFilter
 import icdlookup
 import pandas as pd
@@ -18,7 +18,7 @@ filters={
          'diagnoses': [ICDFilter('icd_code',['I21*'])],
          'labevents': [LabEventFilter('itemid',[51652,50963,50811,50907,50931,50910])]
          }
-cohort_sex_age=MIMICPatientCohort('mimic-iv-demo',
+cohort_sex_age=PhysioNetPatientCohort('mimic-iv-demo',
                                     'hosp/patients.csv.gz',
                                     'hosp/admissions.csv.gz',
                                     'hosp/diagnoses_icd.csv.gz',

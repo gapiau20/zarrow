@@ -45,7 +45,7 @@ class ZarrLoader:
     def __init__(self, zarr_path:str):
         self.store = zarr.open(zarr_path, mode='r')
 
-    def load_group(self, group_name:str, as_df:bool=True):
+    def load_group(self, group_name:str, as_df:bool=False):
         """
         Load a group from zarr store.
         - convert bytes-> str
@@ -67,7 +67,7 @@ class ZarrLoader:
 
     def load_index(self):
         """
-        load index bsubject_id
+        load index subject_id
         """
         arr = self.store[self.store.array_keys()[0]][:] if len(self.store.array_keys())>0 else np.array([])
         return arr
