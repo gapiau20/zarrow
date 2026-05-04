@@ -64,11 +64,21 @@ dataset:
       - name: ICDFilter
         parameters:
           diag_column: icd_code
-          icd_codes: ['4019', '25000']
+          icd_codes: ['4019','E785']
     processor:
       name: EHRDataFrameProcessor
-
-#                                     'hosp/patients.csv.gz',
-#                                     'hosp/admissions.csv.gz',
-#                                     'hosp/diagnoses_icd.csv.gz',
-#                                     'hosp/labevents.csv.gz',
+  labs:
+    file: hosp/labevents.csv.gz
+    columns:
+      - subject_id
+      - hadm_id
+      - itemid
+      - charttime
+      - value
+    filters:
+      - name: LabEventFilter
+        parameters:
+          lab_event_column: itemid
+          lab_events: [50868, 50971]
+    processor:
+      name: EHRDataFrameProcessor

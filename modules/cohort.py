@@ -2,6 +2,9 @@ import yaml
 import shutil
 import pandas as pd
 
+import os
+from modules.zarr_tools import ZarrWriter
+
 from modules.db_filters import register_filters
 from modules.db_processors import DatabaseProcessor, register_database_processors
 
@@ -23,26 +26,18 @@ def get_schema_from_config(config_path):
     The config file should have the following structure:
     dataset:
         name: name of the dataset (e.g. mimic-iv-demo)
-        patient:
-            file: path to the patient csv file (relative to the tmp_dir)
+        group_key1:
+            file: path to the csv file to process for this group (relative to the tmp_dir)
+            columns:
+                - subject_id
+                - etc. #columns to read from the csv file
+            processor:
+                name: EHRDataFrameProcessor #name of the processor class to use for this group (should be a subclass of DatabaseProcessor and should be registered in the processor registry)
             filters:
                 - name: name of the filter class (e.g. AgeFilter, SexFilter, etc.)
                   parameters: parameters to initialize the filter class (e.g. age_threshold: 18)
-        admission:
-            file: path to the admission csv file (relative to the tmp_dir)
-            filters:
-                - name: name of the filter class (e.g. AgeFilter, SexFilter, etc.)
-                  parameters: parameters to initialize the filter class (e.g. age_threshold: 18)
-        diagnoses:
-            file: path to the diagnoses csv file (relative to the tmp_dir)
-            filters:
-                - name: name of the filter class (e.g. ICDFilter, etc.)
-                  parameters: parameters to initialize the filter class (e.g. icd_codes: ['I21*'])
-        labevents:
-            file: path to the labevents csv file (relative to the tmp_dir)
-            filters:
-                - name: name of the filter class (e.g. LabEventFilter, etc.)
-                  parameters: parameters to initialize the filter class (e.g. itemids: [50811, 50907, etc.])
+        group_key2:
+            etc.
     '''
     import yaml
     with open(config_path) as f:
@@ -120,9 +115,32 @@ class BaseCohort:
         cohort=pd.concat(cohort,axis=0)
         return cohort
     
-    def build_cohort(self):
+    def download_file(self,file:str):
+        raise NotImplementedError("This method should be implemented in the subclass to download the necessary files to build the cohort.")
+    
+    def build_cohort(self)->pd.DataFrame:
+        #first download the csv_files that can serve to filter the cohort
+        cohort={}
+        #for each group in the schema, build the corresponding cohort and apply the filters
+        for p in self.processors.keys():
+            print(f'Building cohort for group {p}...')
+            #load the necessary table to build the cohort for the group and apply the filters defined in the processor
+            dataset_csv_file=self.schema[p]['file']
+            self.download_file(dataset_csv_file)
+            print(f'Filters to apply: {self.processors[p].filters}')
+            df=self.process_csv_chunk(os.path.join(self.tmp_dir, dataset_csv_file), self.processors[p])
+            cohort[p]=df
+        # self.remove_tmp_dir() #commented out for now for debugging purposes, but should be uncommented in production to avoid filling up the disk with temporary files TODO
+        return cohort
+    
+    def build_and_save(self,zarr_path:str):
         '''
-        Build the cohort and return a dict of dataframes corresponding to the different groups (e.g. patient, admission, diagnoses, etc.)
-        The keys of the dict should correspond to the keys in the filters dict.
+        Build the cohort and save it into a zarr dataset    
         '''
-        raise NotImplementedError('Implement in daughter class.')
+        #cohort build
+        cohort = self.build_cohort()
+        #save the cohort into a zarr dataset
+        writer = ZarrWriter(zarr_path, self.zarr_index)
+        for k in cohort.keys():
+            writer.write_dataframe(cohort[k], k)
+        writer.write_index(cohort['patient'][self.zarr_index].to_numpy())

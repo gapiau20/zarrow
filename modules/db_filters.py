@@ -96,6 +96,7 @@ class ProcedureFilter(EventFilter):
     '''
     def __init__(self,procedure_event_column, procedure_events):
         super().__init__(procedure_event_column, procedure_events)
+
 class MedicationFilter(EventFilter):
     '''
     Filter by medication events in a given column
@@ -116,4 +117,3 @@ def register_filters():
         if isinstance(obj, type) and issubclass(obj, BaseFilter):
             processor_map[name] = obj
     return processor_map
-register_filters()
