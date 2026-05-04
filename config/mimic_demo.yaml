@@ -1,2 +1,41 @@
 dataset:
   name: mimic-iv-demo
+  patient:
+    file: 'hosp/patients.csv.gz'
+    columns: 
+      - subject_id
+      - admission_id
+    processor: 
+      name: EHRDataFrameProcessor      
+  admission:
+    file: 'hosp/admissions.csv.gz'
+    columns:
+      - subject_id
+      - admission_id
+      - admission_type
+      - admission_location
+      - discharge_location
+      - insurance
+      - language
+      - religion
+    processor:
+      name: EHRDataFrameProcessor
+  demographics: 
+    file: hosp/patients.csv.gz
+    columns:
+      - subject_id
+      - age
+      - gender
+    processor:
+      name: EHRDataFrameProcessor
+    filters:
+      - name: AgeFilter
+        parameters:
+          age_column: age
+          age_min: 18
+          age_max: 99
+
+#                                     'hosp/patients.csv.gz',
+#                                     'hosp/admissions.csv.gz',
+#                                     'hosp/diagnoses_icd.csv.gz',
+#                                     'hosp/labevents.csv.gz',
