@@ -109,3 +109,11 @@ class CharteventFilter(EventFilter):
     '''
     def __init__(self,chartevent_column, chartevents):
         super().__init__(chartevent_column, chartevents)
+
+def register_filters():
+    processor_map = {}
+    for name, obj in globals().items():
+        if isinstance(obj, type) and issubclass(obj, BaseFilter):
+            processor_map[name] = obj
+    return processor_map
+register_filters()
