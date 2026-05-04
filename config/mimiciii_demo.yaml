@@ -1,0 +1,75 @@
+dataset:
+  name: mimiciii-demo
+  patient:
+    file: 'PATIENTS.csv'
+    columns: 
+      - subject_id
+    processor: 
+      name: EHRDataFrameProcessor      
+  admission:
+    file: 'ADMISSIONS.csv'
+    columns:
+      - subject_id
+      - hadm_id
+      - admittime
+      - dischtime
+      - admission_type
+      - admission_location
+      - discharge_location
+      - edregtime
+      - edouttime
+      - hospital_expire_flag
+    processor:
+      name: EHRDataFrameProcessor
+
+  social: 
+    file: 'ADMISSIONS.csv'
+    columns:
+      - subject_id
+      - hadm_id
+      - insurance
+      - language
+      - marital_status
+      - ethnicity
+    processor:
+      name: EHRDataFrameProcessor
+
+  demographics: 
+    file: 'PATIENTS.csv'
+    columns:
+      - subject_id
+      - gender
+      - dob
+      - dod
+    processor:
+      name: EHRDataFrameProcessor
+    
+  diagnoses:
+    file: 'DIAGNOSES_ICD.csv'
+    columns:
+      - subject_id
+      - hadm_id
+      - seq_num
+      - icd9_code
+    filters:
+      - name: ICDFilter
+        parameters:
+          diag_column: icd9_code
+          icd_codes: ['4019','E785']
+    processor:
+      name: EHRDataFrameProcessor
+  labs:
+    file: LABEVENTS.csv
+    columns:
+      - subject_id
+      - hadm_id
+      - itemid
+      - charttime
+      - value
+    filters:
+      - name: LabEventFilter
+        parameters:
+          lab_event_column: itemid
+          lab_events: [50868, 50971]
+    processor:
+      name: EHRDataFrameProcessor
