@@ -3,7 +3,7 @@ import os
 import pandas as pd
 from .db_filters import BaseFilter
 
-class EHRDatabaseBaseProcessor:
+class DatabaseProcessor:
     '''
     Base class for database processors
     '''
@@ -24,7 +24,7 @@ class EHRDatabaseBaseProcessor:
         '''
         raise NotImplementedError('Implement in daughter class.')
 
-class EHRDataFrameProcessor(EHRDatabaseBaseProcessor):
+class EHRDataFrameProcessor(DatabaseProcessor):
     '''
     Processor for EHR dataframes, to be used in the cohort building process.
     '''
@@ -41,12 +41,12 @@ class EHRDataFrameProcessor(EHRDatabaseBaseProcessor):
 
         return df[self.columns], self.zarr_index
     
-class PatientPreprocessor(EHRDatabaseBaseProcessor):
+class PatientPreprocessor(DatabaseProcessor):
     pass
 
 def register_database_processors():
     processor_map = {}
     for name, obj in globals().items():
-        if isinstance(obj, type) and issubclass(obj, EHRDatabaseBaseProcessor):
+        if isinstance(obj, type) and issubclass(obj, DatabaseProcessor):
             processor_map[name] = obj
     return processor_map

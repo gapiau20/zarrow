@@ -9,7 +9,7 @@ import shutil
 from pathlib import Path
 import pandas as pd
 
-from modules.db_processors import EHRDatabaseBaseProcessor
+from modules.db_processors import DatabaseProcessor
 
 # relative imports
 from .zarr_tools import ZarrWriter
@@ -123,10 +123,22 @@ class MIMICIVPatientCohort(BaseCohort):
         #TODO: add icu stays for the selected admissions
         pass
     ################full cohort building and saving into zarr################
-
+    
     def build_cohort(self)->pd.DataFrame:
         #first download the csv_files that can serve to filter the cohort
         self.download_files()
+        cohort={}
+        #for each group in the schema, build the corresponding cohort and apply the filters
+        for p in self.processors.keys():
+            print(f'Building cohort for group {p}...')
+            csv_file=os.path.join(self.tmp_dir, self.schema[p]['file'])
+            print(f'Filters to apply: {self.processors[p].filters}')
+            df=self.process_csv_chunk(csv_file,self.processors[p])
+            cohort[p]=df
+            
+        return cohort
+
+
         # 1.  build the patient table with demographic information and anchor age
         # patient_cohort,patient_cohort_key=self.build_patients()
         # # 2. build the admission table for the selected patients

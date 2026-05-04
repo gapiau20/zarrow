@@ -4,36 +4,69 @@ dataset:
     file: 'hosp/patients.csv.gz'
     columns: 
       - subject_id
-      - admission_id
     processor: 
       name: EHRDataFrameProcessor      
   admission:
     file: 'hosp/admissions.csv.gz'
     columns:
       - subject_id
-      - admission_id
+      - hadm_id
+      - admittime
+      - dischtime
       - admission_type
+      - admit_provider_id
       - admission_location
       - discharge_location
-      - insurance
-      - language
-      - religion
+      - edregtime
+      - edouttime
+      - hospital_expire_flag
     processor:
       name: EHRDataFrameProcessor
+
+  social: 
+    file: hosp/admissions.csv.gz
+    columns:
+      - subject_id
+      - hadm_id
+      - insurance
+      - language
+      - marital_status
+      - race
+    processor:
+      name: EHRDataFrameProcessor
+
   demographics: 
     file: hosp/patients.csv.gz
     columns:
       - subject_id
-      - age
       - gender
+      - anchor_age
+      - anchor_year
+      - anchor_year_group
+      - dod
     processor:
       name: EHRDataFrameProcessor
     filters:
       - name: AgeFilter
         parameters:
-          age_column: age
+          age_column: anchor_age
           age_min: 18
           age_max: 99
+  diagnoses:
+    file: hosp/diagnoses_icd.csv.gz
+    columns:
+      - subject_id
+      - hadm_id
+      - seq_num
+      - icd_code
+      - icd_version
+    filters:
+      - name: ICDFilter
+        parameters:
+          diag_column: icd_code
+          icd_codes: ['4019', '25000']
+    processor:
+      name: EHRDataFrameProcessor
 
 #                                     'hosp/patients.csv.gz',
 #                                     'hosp/admissions.csv.gz',

@@ -3,7 +3,7 @@ import shutil
 import pandas as pd
 
 from modules.db_filters import register_filters
-from modules.db_processors import EHRDatabaseBaseProcessor, register_database_processors
+from modules.db_processors import DatabaseProcessor, register_database_processors
 
 def get_columns_from_dataframe(df:pd.DataFrame):
     '''Build a schema dict from a dataframe containing the necessary information to build the cohort.'''
@@ -48,8 +48,9 @@ def get_schema_from_config(config_path):
     with open(config_path) as f:
         config = yaml.safe_load(f)
     return config['dataset']
-class PatientProcessor(EHRDatabaseBaseProcessor):
-    pass
+
+
+
 class BaseCohort:
     def __init__(self,tmp_dir:str,zarr_index_name:str,schema={}):
         '''
@@ -104,6 +105,20 @@ class BaseCohort:
         Clean temporary dir that was used to build the cohort
         '''
         shutil.rmtree(self.tmp_dir)
+
+    def process_csv_chunk(self,file_path:str,processor:DatabaseProcessor)->pd.DataFrame:
+        '''
+        Generic function to process a csv file in chunks and apply the processor to each chunk.
+        file_path: path to the csv file
+        processor: processor to apply to each chunk (should be a subclass of DatabaseProcessor)
+        '''
+        cohort = []
+        for chunk in pd.read_csv(file_path,chunksize=self.chunk_size):
+            processed_chunk, zarr_index = processor.process(chunk)
+            if not processed_chunk.empty:
+                cohort.append(processed_chunk)
+        cohort=pd.concat(cohort,axis=0)
+        return cohort
     
     def build_cohort(self):
         '''
