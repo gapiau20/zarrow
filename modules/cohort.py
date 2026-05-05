@@ -11,12 +11,28 @@ from modules.db_processors import DatabaseProcessor, register_database_processor
 def get_columns_from_dataframe(df:pd.DataFrame):
     '''Build a schema dict from a dataframe containing the necessary information to build the cohort.'''
     return [col for col in df.columns]
-def get_schema_from_csv(file_path):
+
+def read_tabular_file(filepath:str,**kwargs)->pd.DataFrame:
+    """Read a file using pandas based on its extension."""
+    ext = os.path.splitext(filepath)[1].lower()
+
+    if ext == ".csv":
+        return pd.read_csv(filepath, **kwargs)
+    elif ext in [".xls", ".xlsx"]:
+        return pd.read_excel(filepath, **kwargs)
+    elif ext == ".parquet":
+        return pd.read_parquet(filepath, **kwargs)
+    elif ext == ".json":
+        return pd.read_json(filepath, **kwargs)
+    else:
+        raise ValueError(f"Unsupported file format: {ext}")
+
+def get_schema_from_tabular_file(file_path)->dict:
     schema={}
     #add the filename key
     schema['file']=file_path
     #add the columns key
-    schema['columns']=get_columns_from_dataframe(pd.read_csv(file_path, nrows=0))
+    schema['columns']=get_columns_from_dataframe(read_tabular_file(file_path))
     #add filters
     schema['filters']=[]
     return schema

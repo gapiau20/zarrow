@@ -4,6 +4,10 @@ We aim to predict the 28-day mortality of patients admitted to the hospital for 
 based on their demographics and lab values (e.g. troponin levels, itemid 50912).
 The obtained cohort is then used to develop and assess a machine learning model for mortality prediction.
 '''
+import os
+import sys
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 
 from modules.mimic_clinical_cohort import PhysioNetPatientCohort
 from modules.db_filters import AgeFilter,SexFilter,ICDFilter,LabEventFilter
