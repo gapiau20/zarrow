@@ -35,7 +35,14 @@ def get_schema_from_tabular_file(file_path)->dict:
     schema['columns']=get_columns_from_dataframe(read_tabular_file(file_path))
     #add filters
     schema['filters']=[]
+    schema['processor']=None
     return schema
+
+def build_default_schema_from_tabular_file(input_file,output_yaml):
+    schema=get_schema_from_tabular_file(input_file)
+    with open(output_yaml, 'w') as f :
+        yaml.safe_dump(schema,f)
+    return
 def get_schema_from_config(config_path):
     '''
     Get the schema for cohort building from a yaml config file.
