@@ -328,6 +328,7 @@ dataset:
   # --- 3. Myocardial Infarction ---
   myocardial_infarction:
     description: "Peri-procedural or spontaneous myocardial infarction."
+    file: data\improve\output_AK.CSV
     columns:
       - Fallnummer
       - AUFNBEFUNDINFARKT   # Admission finding: infarction

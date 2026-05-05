@@ -27,10 +27,13 @@ class IMPROVECohort(TabularCohort):
             print("Checking:", p, "->", os.path.exists(p))
         if all(os.path.exists(p) for p in full_paths):
             print("Files already present. Skipping download.")
+            
+            if os.path.exists(file) and not os.path.exists(os.path.join(self.tmp_dir,file)):
+                print(f'Copy file {file} into {self.tmp_dir}')
+                dst = os.path.join(self.tmp_dir, file)
+                os.makedirs(os.path.dirname(dst), exist_ok=True)
+                shutil.copy(file, dst)
             return
-        if os.path.exists(file) and not os.path.exists(os.path.join(self.tmp,file)):
-            print(f'Copy file {file} into {self.tmp}')
-            shutil.copy(file,os.path.join(self.tmp,file))
         raise ValueError(f'{file} not found. ')
 
 class IMPROVETAVICohort(IMPROVECohort):

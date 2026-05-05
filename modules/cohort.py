@@ -17,7 +17,12 @@ def read_tabular_file(filepath:str,**kwargs)->pd.DataFrame:
     ext = '.'+filepath.split('.')[-2].lower() if '.gz' in filepath else os.path.splitext(filepath)[-1].lower()
 
     if ext in [".csv",".csv.gz"]:
-        return pd.read_csv(filepath, **kwargs)
+        for enc in ["utf-8", "cp1252", "latin1"]:
+            try:
+                return pd.read_csv(filepath, encoding=enc, **kwargs)
+            except UnicodeDecodeError:
+                continue
+        raise ValueError(f"Could not decode file {filepath} with tried encodings.")
     elif ext in [".xls", ".xlsx"]:
         return pd.read_excel(filepath, **kwargs)
     elif ext == ".parquet":
