@@ -1,292 +1,318 @@
-# IMPROVE QSM columns - German to English Column Name Mapping
+# Case and Registry IDs
+Fallnummer: case_number
+Vorgangsnr.: procedure_number
+RegistrierNr: registration_number
+TABLENAME: table_name
+VersionNr: version_number
+VorgangsnrGuid: procedure_guid
+BSNR: physician_identification_number
+IKNRKH: hospital_identification_number
+Standort: location
+standortID: location_id
+standortIDops: location_id_operation
+Storno: cancellation_flag
+Importdatum: import_date
+DokAbschlDat: documentation_completion_date
+Modul: module
+SPEZJAHR: specialty_year
 
-# --- Administrative and Identifier Fields ---
-Fallnummer: "Case Number"
-Vorgangsnr.: "Procedure Number"
-VorgangsnrGuid: "Procedure Unique Identifier"
-Name: "Name"
-RegistrierNr: "Registration Number"
-BSNR: "Social Security Number (Germany)"
-IKNRKH: "Hospital Identification Number"
-TABLENAME: "Table Name"
-VersionNr: "Version Number"
-Importdatum: "Import Date"
-DokAbschlDat: "Document Completion Date"
-Storno: "Cancellation Flag"
-Standort: "Location / Facility"
-standortID: "Location Identifier"
-standortIDops: "Operation Location Identifier"
-Modul: "Module"
-SPEZJAHR: "Specialization Year"
-kasseiknr2Stellen: "Insurance Code (2 Digits)"
-versichertenidgkv: "Insured Person ID (GKV)"
-versichertenstatusgkv: "Insured Person Status (GKV)"
+# Patient Demographics
+Name: patient_name
+Geburtsdatum: date_of_birth
+gebjahr: birth_year
+alter: age
+ALTERJL: age_in_years
+GESCHLECHT: gender
+KOERPERGEWICHT: body_weight_kg
+KOERPERGEWICHTNB: body_weight_unknown
+KOERPERGROESSE: body_height_cm
+KOERPERGROESSENB: body_height_unknown
+bf_BMI: bmi
+KREATININWERTMGDL: creatinine_mg_dl
+kreatininwertmgdl: creatinine_mg_dl_alt
+KREATININWERTMOLL: creatinine_mmol_l
+kreatininwertmoll: creatinine_mmol_l_alt
+bf_KreatininPraeMGDL: preoperative_creatinine_mg_dl
+FLDOSIS: fluoro_dose
+FLDOSISUNB: fluoro_dose_unknown
 
-# --- Patient Information ---
-Geburtsdatum: "Date of Birth"
-gebjahr: "Year of Birth"
-alter: "Age"
-ALTERJL: "Age in Years"
-GESCHLECHT: "Gender"
-KOERPERGEWICHT: "Body Weight (kg)"
-KOERPERGEWICHTNB: "Body Weight (Unspecified)"
-KOERPERGROESSE: "Height (cm)"
-KOERPERGROESSENB: "Height (Unspecified)"
-bf_BMI: "Body Mass Index (BMI)"
+# Admission and Discharge
+AufnQuartal: admission_quarter
+entlquartal: discharge_quarter
+EntlQuartal: discharge_quarter_alt
+entlwochtag: discharge_weekday
+opquartal: operation_quarter
+AUFNBEFUNDBEATMUNG: admission_finding_ventilation
+AUFNBEFUNDDIABETES: admission_finding_diabetes
+AUFNBEFUNDHYPERTONIEPULMONAL: admission_finding_pulmonary_hypertension
+AUFNBEFUNDINFARKT: admission_finding_infarction
+AUFNBEFUNDREANIMATION: admission_finding_resuscitation
+AUFNBEFUNDSCHOCKKARDIOGEN: admission_finding_cardiogenic_shock
+AUFNBEFUNDSMTRAEGER: admission_finding_pacemaker
+AUFNNYHAERWEITERTKLAPPEN: admission_nyha_extended_valves
+AUFNRHYTHMUS: admission_rhythm
+ENTLASSSMTRAEGER: discharge_pacemaker
+ENTLGRUND: discharge_reason
+NICHTSPEZENTLGRUND: non_specialized_discharge_reason
+abstFUErhebungsdatum: follow_up_date
+quartalFUErhebungsdatum: follow_up_quarter
+abstTodEntldatum: date_of_death_or_discharge
+quartalTodesdatum: quarter_of_death
+Status: status
+Kommentarstatus: comment_status
+Kommentar: comment
 
-# --- Preoperative Medical Information ---
-AUFNBEFUNDBEATMUNG: "Admission Status - Mechanical Ventilation"
-AUFNBEFUNDDIABETES: "Admission Status - Diabetes"
-AUFNBEFUNDHYPERTONIEPULMONAL: "Admission Status - Pulmonary Hypertension"
-AUFNBEFUNDINFARKT: "Admission Status - Myocardial Infarction"
-AUFNBEFUNDREANIMATION: "Admission Status - Resuscitation"
-AUFNBEFUNDSCHOCKKARDIOGEN: "Admission Status - Cardiogenic Shock"
-AUFNBEFUNDSMTRAEGER: "Admission Status - Device Carrier (e.g., Stent)"
-AUFNNYHAERWEITERTKLAPPEN: "Admission Status - Valvular Insufficiency (NYHA)"
-AUFNRHYTHMUS: "Admission Status - Rhythm Disorder"
-ASA: "ASA Physical Status Classification"
-LVEF: "Left Ventricular Ejection Fraction (LVEF)"
-LVEFUNBEKANNT: "LVEF Unknown"
-LVESD: "Left Ventricular End-Systolic Dimension"
-LVESDNV: "Left Ventricular End-Systolic Dimension (Unspecified)"
-RVOL: "Right Ventricular Volume"
-RVOLNV: "Right Ventricular Volume (Unspecified)"
-KREATININWERTMGDL: "Creatinine Level (mg/dL)"
-kreatininwertmgdl: "Creatinine Level (mg/dL)"
-KREATININWERTMOLL: "Creatinine Level (mol/L)"
-kreatininwertmoll: "Creatinine Level (mol/L)"
-bf_KreatininPraeMGDL: "Preoperative Creatinine Level (mg/dL)"
-TROPONIN: "Troponin Level"
-ACEHEMMER: "ACE Inhibitors"
-ALDOSTANTAGONIST: "Aldosterone Antagonists"
-BETABLOCKER: "Beta Blockers"
-DIURETIKA: "Diuretics"
-SONSTMEDIK: "Other Medications"
-MALIGNOM: "History of Malignancy"
-LUNGENERKRANKUNGEN: "Pulmonary Diseases"
-NEUROLOGISCHEERKRANKUNGEN: "Neurological Diseases"
-AVK: "Peripheral Arterial Disease (PAD)"
-AVKHIRNVERSORGEND: "Cerebral Arterial Disease"
-AVKPERIPHER: "Peripheral Arterial Disease"
-AVKSONSTIGE: "Other Arterial Diseases"
-AVKAORTENANEURYSMA: "Aortic Aneurysm"
-AORTDISSEKTION: "Aortic Dissection"
-DISSEKTION: "Dissection"
-AORTENKLAPPENSTENOSE: "Aortic Valve Stenosis"
-AORTREGURGITATION: "Aortic Regurgitation"
-HAUPTSTAMMSTENOSE: "Left Main Coronary Stenosis"
-KOROANGBEFUND: "Coronary Angiography Findings"
-PCIHCH: "Percutaneous Coronary Intervention (PCI)"
-PCIDATUM: "PCI Date"
-INFARKTPOSTOP: "Postoperative Myocardial Infarction"
-REANIMPOSTOP: "Postoperative Resuscitation"
-RISKBEGL: "Risk - Hemodynamic"
-RISKHAEMDYN: "Risk - Hemodynamic Instability"
-RISKEMBOLIE: "Risk - Embolism"
-HOCHRISIKO: "High-Risk Patient"
-FRAILTY: "Frailty Score"
-bf_euroSCORE_I: "EuroSCORE I (Surgical Risk Score)"
-bf_AKLScore2: "AKL Score 2 (German Surgical Risk Score)"
-bf_AKL_KATH_Score: "AKL Cath Score"
+# Quality and Status Flags
+QSM_QS_STATUS: qs_management_status
+QS_STATUS: quality_assurance_status
+bf_StatusBekannt30T: status_known_30_days
+bf_TodInnerhalb30T: death_within_30_days
+STATUS30TAGEPOSTOP: status_30_days_postop
+RANKINENTL: rankin_scale_discharge
+RANKINSCHLAGANFALL: rankin_scale_stroke
 
-# --- TAVI Procedure Information ---
-AORTENKLAPPE: "Aortic Valve Type"
-STANDORTOPS: "Operation Site"
-OPDATUM: "Operation Date"
-opquartal: "Operation Quarter"
-OPDAUER: "Operation Duration (minutes)"
-FUEHRENDEROPS: "Primary Operation"
-MITREING: "Reintervention"
-WEITEINGR: "Additional Intervention"
-WEITEINGRSONST: "Other Additional Interventions"
-KONVERSION: "Conversion (e.g., TAVI to Open Surgery)"
-KONVEREINGRIFF: "Type of Conversion"
-INTERPCI: "Percutaneous Intervention"
-ZUGANGHCH: "Access Route (Femoral, etc.)"
-ZUGANGKC: "Access Route (Carotid)"
-ZUGANGMKE: "Access Route (Other)"
-bf_OPistHCHAortKath: "Operation - Aortic Catheterization"
-bf_OPistKCHK_AKKath: "Operation - Coronary and Aortic Catheterization"
-GRAFTSANZAHL: "Number of Grafts (Stents)"
-GRAFTSITALINKS: "Graft Position (Left)"
-GRAFTSSONSTIGE: "Graft Position (Other)"
-DEVICEEMBOLISATION: "Device Embolization"
-DEVICEFEHLPOS: "Device Malposition"
-PERIKARDTAMPO: "Pericardial Tamponade (Intraoperative)"
-PERIKARDTAMPOST: "Pericardial Tamponade (Postoperative)"
-MEDIASTINITIS: "Mediastinitis"
-KOMPLINFEKT: "Infectious Complications"
-KOMPLMECHJN: "Mechanical Complications"
-GEFKOMPLIKAT: "Complications - General"
-GEFRUPTUR: "Rupture"
-GEFVERSCHLNR: "Occlusion"
-BLUTUNGJL: "Bleeding"
-HAEMATOMJL: "Hematoma"
-HAEMATBLUTUN: "Hemorrhage"
-ISCHAEMIEJL: "Ischemia (Intraoperative)"
-VASKKOMPLIKAT: "Vascular Complications"
-bf_IntraprozeduraleKomplikation: "Intraprocedural Complications"
-bf_ArterielleKomplikation: "Arterial Complications"
-REVASK: "Revascularization"
-LECKAGE: "Paravalvular Leak"
-ENDOKARD: "Endocarditis"
-THROMB: "Thrombosis"
-EROA: "Effective Regurgitant Orifice Area (EROA)"
-EROANV: "EROA (Unspecified)"
-MKOEFFN: "Mitral Regurgitation Coefficient"
-MKOEFFNNV: "Mitral Regurgitation Coefficient (Unspecified)"
-MORPH: "Valve Morphology"
-SEGELPROLAPS: "Valve Prolapse"
-FLAILLEAFLET: "Flail Leaflet"
-ANNULUSRUPTUR: "Annulus Rupture"
-PORZAORTA: "Porcelain Aorta"
-PRAENIEREERSATZTH: "Previous Valve Replacement"
-PRAEOPCDC: "Preoperative Comorbidities (CDC)"
-VITIUM: "Cardiac Malformation"
-VOROPANZAHL: "Number of Previous Operations"
-bf_StatusBekannt30T: "Status Known at 30 Days Postop"
-STATUS30TAGEPOSTOP: "Status at 30 Days Postoperative"
-bf_TodInnerhalb30T: "Death Within 30 Days Postop"
+# Department and Organizational Units
+FACHABT: specialty_department
+IntBewOrgEinheit: internal_evaluation_organizational_unit
+IntAufnFAB: internal_admission_department
+IntEntlFAB: internal_discharge_department
+IntErbFAB: internal_inherited_department
+IntSonstigeFAB: internal_other_department
+IntStation: internal_station
+STANDORTOPS: operation_location
 
-# --- Diagnostics and Results ---
-ENTLDIAG_1: "Discharge Diagnosis 1"
-ENTLDIAG_2: "Discharge Diagnosis 2"
-ENTLDIAG_3: "Discharge Diagnosis 3"
-ENTLDIAG_4: "Discharge Diagnosis 4"
-ENTLDIAG_5: "Discharge Diagnosis 5"
-ENTLDIAG_6: "Discharge Diagnosis 6"
-ENTLDIAG_7: "Discharge Diagnosis 7"
-ENTLDIAG_8: "Discharge Diagnosis 8"
-ENTLDIAG_9: "Discharge Diagnosis 9"
-ENTLDIAG_10: "Discharge Diagnosis 10"
-ENTLDIAG_11: "Discharge Diagnosis 11"
-ENTLDIAG_12: "Discharge Diagnosis 12"
-ENTLDIAG_13: "Discharge Diagnosis 13"
-ENTLDIAG_14: "Discharge Diagnosis 14"
-ENTLDIAG_15: "Discharge Diagnosis 15"
-ENTLDIAG_16: "Discharge Diagnosis 16"
-ENTLDIAG_17: "Discharge Diagnosis 17"
-ENTLDIAG_18: "Discharge Diagnosis 18"
-ENTLDIAG_19: "Discharge Diagnosis 19"
-ENTLDIAG_20: "Discharge Diagnosis 20"
-ENTLDIAG_21: "Discharge Diagnosis 21"
-ENTLDIAG_22: "Discharge Diagnosis 22"
-ENTLDIAG_23: "Discharge Diagnosis 23"
-ENTLDIAG_24: "Discharge Diagnosis 24"
-ENTLDIAG_25: "Discharge Diagnosis 25"
-ENTLDIAG_26: "Discharge Diagnosis 26"
-ENTLDIAG_27: "Discharge Diagnosis 27"
-ENTLDIAG_28: "Discharge Diagnosis 28"
-ENTLDIAG_29: "Discharge Diagnosis 29"
-ENTLDIAG_30: "Discharge Diagnosis 30"
-ENTLGRUND: "Reason for Discharge"
-NICHTSPEZENTLGRUND: "Non-Specific Discharge Reason"
-RANKINENTL: "Rankin Scale at Discharge"
-RANKINSCHLAGANFALL: "Rankin Scale Post-Stroke"
-EXITUS: "Death"
-abstTodEntldatum: "Date of Death"
-quartalTodesdatum: "Quarter of Death"
-PROGLIMZWEITERKR: "Prognosis - Limitation Due to Other Diseases"
+# Procedure Details
+bf_IstErsteOP: is_first_operation
+bf_Poopvwdauer_LfdNrEingriff: postoperative_duration_sequential_procedure_number
+poopvwdauer: postoperative_duration
+poopVwDauer: postoperative_duration_alt
+vwDauer: duration_unknown
+OPDATUM: operation_date
+OPDAUER: operation_duration
+DLDAUER: cross_clamp_duration
+DRINGLICHKEIT: urgency
+FUEHRENDEROPS: leading_procedure
+PATWUNSCH: patient_request
+VOROPANZAHL: number_of_previous_operations
+KONVERSION: conversion
+KONVEREINGRIFF: conversion_procedure
+INTERPCI: interventional_pci
+MITREING: concurrent_procedure
+WECHSEING: change_procedure
+WEITEINGR: additional_procedure
+WEITEINGRSONST: additional_procedure_other
+ZUGANGHCH: access_heart_surgery
+ZUGANGKC: access_cardiac_catheter
+ZUGANGMKE: access_mechanical_circulatory_support
+ZUGKOMPLSONST: access_complication_other
 
-# --- Follow-Up and Postoperative ---
-abstFUErhebungsdatum: "Follow-Up Date"
-quartalFUErhebungsdatum: "Follow-Up Quarter"
-poopvwdauer: "Postoperative Hospital Stay Duration"
-poopVwDauer: "Postoperative Hospital Stay Duration"
-vwDauer: "Ventilation Duration"
-DLDAUER: "ICU Stay Duration"
-KREISLAUFUNTERSTUETZUNG: "Circulatory Support (Medications)"
-INOTROPEIV: "Inotropes (IV)"
-NITRATEIV: "Nitrates (IV)"
-KMMENGE: "Fluid Volume Administered"
-INFEKTIONAKUTHCH_1: "Acute Infection 1"
-INFEKTIONAKUTHCH_2: "Acute Infection 2"
-INFEKTIONAKUTHCH_3: "Acute Infection 3"
-CEREBROEREIGNIS: "Cerebral Event"
-CEREBROEREIGNISDAUER: "Cerebral Event Duration"
-HIRNEMBOLIE: "Cerebral Embolism"
-REEING: "Reintervention"
-LOWCARD: "Low Cardiac Output"
-LOWCARDTH: "Low Cardiac Output (Threshold)"
-VEGET: "Vegetative State"
-VENAC: "Venous Access"
-VENACNV: "Venous Access (Unspecified)"
+# Cardiac-Specific Variables
+AORTENKLAPPE: aortic_valve
+HERZOPSONSTIGE: other_heart_procedures
+KORONARCHIRURGIE: coronary_surgery
+LFDNREINGRIFF: lfdnr_procedure
+LFDNRAORT: lfdnr_aorta
+LFDNRKC: lfdnr_cardiac_catheter
+LFDNRMKE: lfdnr_mechanical_circulatory_support
+PRAENIEREERSATZTH: preoperative_valve_replacement
+PRAEOPCDC: preoperative_cdc
+PROGLIMZWEITERKR: prognosis_secondary_disease
+bf_OPistHCHAortKath: operation_is_aortic_catheter
+bf_OPistKCHK_AKKath: operation_is_coronary_catheter
+STERNUM: sternum
+PERIKARDTAMPO: pericardial_tamponade
+PERIKARDTAMPOST: pericardial_tamponade_postop
+REANIMPOSTOP: reanimation_postop
+INFARKTPOSTOP: infarction_postop
+MEDIASTINITIS: mediastinitis
+GEFKOMPLIKAT: vascular_complication
+GEFRUPTUR: vascular_rupture
+GEFVERSCHLNR: vascular_occlusion_number
+VASKKOMPLIKAT: vascular_complication_other
+DEVICEEMBOLISATION: device_embolization
+DEVICEFEHLPOS: device_malposition
+KREISLAUFUNTERSTUETZUNG: circulatory_support
+INOTROPEIV: inotropic_support_iv
+NITRATEIV: nitrate_iv
+KMMENGE: cardiac_medication_dose
+PCIHCH: pci_heart_surgery
+AKINSUFFIZIENZ: acute_kidney_injury
+HOCHRISIKO: high_risk
+FRAILTY: frailty
+ASA: asa_classification
+LVEF: left_ventricular_ejection_fraction
+LVEFUNBEKANNT: lvef_unknown
+LVESD: left_ventricular_end_systolic_dimension
+LVESDNV: lvef_unknown_alt
+RVOL: right_ventricular_volume
+RVOLNV: right_ventricular_volume_unknown
+SYSTPULMDR: systemic_pulmonary_pressure
+SYSTPULMDRNV: systemic_pulmonary_pressure_unknown
+PULMKL: pulmonary_valve
+TRIKUSP: tricuspid_valve
+PORZAORTA: porcelain_aorta
+ANEURYSMA: aneurysm
+AVFISTEL: arteriovenous_fistula
+ENDOKARD: endocarditis
+VITIUM: vitium
+VEGET: vegetation
+THROMB: thrombus
+VERK: calcification
+KOAPTLUECK: coronary_artery_defect
+LECKAGE: leakage
+SEGELPROLAPS: leaflet_prolapse
+FLAILLEAFLET: flail_leaflet
+RUPTHERZH: heart_rupture
+RUPTPAPIL: papillary_muscle_rupture
+HAEMATOMJL: hematoma
+ISCHAEMIEJL: ischemia
+BLUTUNGJL: bleeding
+KOMPLINFEKT: infection_complication
+KOMPLMECHJN: mechanical_complication
+ZUGKOMPLSONST: access_complication_other
 
-# --- OPS Codes (German Procedure Classification) ---
-OPSCHLUESSEL_1: "OPS Code 1"
-OPSCHLUESSEL_2: "OPS Code 2"
-OPSCHLUESSEL_3: "OPS Code 3"
-OPSCHLUESSEL_4: "OPS Code 4"
-OPSCHLUESSEL_5: "OPS Code 5"
-OPSCHLUESSEL_6: "OPS Code 6"
-OPSCHLUESSEL_7: "OPS Code 7"
-OPSCHLUESSEL_8: "OPS Code 8"
-OPSCHLUESSEL_9: "OPS Code 9"
-OPSCHLUESSEL_10: "OPS Code 10"
-OPSCHLUESSEL_11: "OPS Code 11"
-OPSCHLUESSEL_12: "OPS Code 12"
-OPSCHLUESSEL_13: "OPS Code 13"
-OPSCHLUESSEL_14: "OPS Code 14"
-OPSCHLUESSEL_15: "OPS Code 15"
-OPSCHLUESSEL_16: "OPS Code 16"
-OPSCHLUESSEL_17: "OPS Code 17"
-OPSCHLUESSEL_18: "OPS Code 18"
-OPSCHLUESSEL_19: "OPS Code 19"
-OPSCHLUESSEL_20: "OPS Code 20"
+# Diagnoses (Admission and Discharge)
+ENTLDIAG_1: discharge_diagnosis_1
+ENTLDIAG_2: discharge_diagnosis_2
+ENTLDIAG_3: discharge_diagnosis_3
+ENTLDIAG_4: discharge_diagnosis_4
+ENTLDIAG_5: discharge_diagnosis_5
+ENTLDIAG_6: discharge_diagnosis_6
+ENTLDIAG_7: discharge_diagnosis_7
+ENTLDIAG_8: discharge_diagnosis_8
+ENTLDIAG_9: discharge_diagnosis_9
+ENTLDIAG_10: discharge_diagnosis_10
+ENTLDIAG_11: discharge_diagnosis_11
+ENTLDIAG_12: discharge_diagnosis_12
+ENTLDIAG_13: discharge_diagnosis_13
+ENTLDIAG_14: discharge_diagnosis_14
+ENTLDIAG_15: discharge_diagnosis_15
+ENTLDIAG_16: discharge_diagnosis_16
+ENTLDIAG_17: discharge_diagnosis_17
+ENTLDIAG_18: discharge_diagnosis_18
+ENTLDIAG_19: discharge_diagnosis_19
+ENTLDIAG_20: discharge_diagnosis_20
+ENTLDIAG_21: discharge_diagnosis_21
+ENTLDIAG_22: discharge_diagnosis_22
+ENTLDIAG_23: discharge_diagnosis_23
+ENTLDIAG_24: discharge_diagnosis_24
+ENTLDIAG_25: discharge_diagnosis_25
+ENTLDIAG_26: discharge_diagnosis_26
+ENTLDIAG_27: discharge_diagnosis_27
+ENTLDIAG_28: discharge_diagnosis_28
+ENTLDIAG_29: discharge_diagnosis_29
+ENTLDIAG_30: discharge_diagnosis_30
 
-# --- Department and Organizational Information ---
-FACHABT: "Specialized Department"
-IntBewOrgEinheit: "Internal Organizational Unit"
-IntAufnFAB: "Internal Admission Department"
-IntEntlFAB: "Internal Discharge Department"
-IntErbFAB: "Internal Inheritance Department"
-IntSonstigeFAB: "Internal Other Department"
-IntStation: "Internal Ward"
-bf_IstErsteOP: "First Operation Flag"
-bf_Poopvwdauer_LfdNrEingriff: "Postoperative Duration per Procedure"
-AufnQuartal: "Admission Quarter"
-entlquartal: "Discharge Quarter"
-entlwochtag: "Discharge Day of Week"
+# Cardiac Conditions
+AORTENKLAPPENSTENOSE: aortic_valve_stenosis
+AORTREGURGITATION: aortic_regurgitation
+HAUPTSTAMMSTENOSE: left_main_stenosis
+KOROANGBEFUND: coronary_angiography_finding
+ANGINAPECTORHCH: angina_pectoris
+ANNULUSRUPTUR: annulus_rupture
+AORTDISSEKTION: aortic_dissection
+DISSEKTION: dissection
+BOGEN: aortic_arch
+MALIGNOM: malignancy
+LUNGENERKRANKUNGEN: lung_diseases
+NEUROLOGISCHEERKRANKUNGEN: neurological_diseases
+AVK: peripheral_arterial_disease
+AVKAORTENANEURYSMA: peripheral_arterial_disease_aortic_aneurysm
+AVKHIRNVERSORGEND: peripheral_arterial_disease_cerebral
+AVKPERIPHER: peripheral_arterial_disease_peripheral
+AVKSONSTIGE: peripheral_arterial_disease_other
+CEREBROEREIGNIS: cerebrovascular_event
+CEREBROEREIGNISDAUER: cerebrovascular_event_duration
+HIRNEMBOLIE: cerebral_embolism
+LVDEKOMPENSATION: left_ventricular_decompensation
+RHYTHMUSSTOERUNG: rhythm_disturbance
+SONSTIGE: other
 
-# --- Comments and Status ---
-Kommentarstatus: "Comment Status"
-Kommentar: "Comment"
-QSM_QS_STATUS: "Quality Status (QSM)"
-QS_STATUS: "Quality Status"
-Status: "Status"
+# Medications
+ACEHEMMER: ace_inhibitor
+ALDOSTANTAGONIST: aldosterone_antagonist
+BETABLOCKER: beta_blocker
+DIURETIKA: diuretics
+SONSTMEDIK: other_medications
+MEDIKTH: medical_therapy
 
-# --- Additional Fields ---
-PATWUNSCH: "Patient Request"
-Bogen: "Form / Document"
-IdBogenFeldMutter: "Parent Field ID of the Form"
-KOMMIS: "Commission"
-ERGEBNIS: "Result"
-FIBRVERD: "Fibrillation (e.g., Atrial)"
-HERZNG: "Cardiac Disease (Unspecified)"
-HERZOHRV: "Cardiac Arrhythmia"
-HERZOPSONSTIGE: "Other Cardiac Diseases"
-KOAPTLUECK: "Coaptation Defect"
-KOMPSONSTIGE: "Other Complications"
-PULMKL: "Pulmonary Valve"
-SYSTPULMDR: "Systolic Pulmonary Pressure"
-SYSTPULMDRNV: "Systolic Pulmonary Pressure (Unspecified)"
-TRIKUSP: "Tricuspid Valve"
-VERK: "Arrhythmia"
-VHABL: "Atrial Fibrillation"
-VHFLIMM: "Atrial Flutter"
-VHSEPT: "Septic"
-LFDNREINGRIFF: "Procedure Number (TAVI)"
-LFDNRAORT: "Procedure Number (Aorta)"
-LFDNRKC: "Procedure Number (Coronary)"
-LFDNRMKE: "Procedure Number (Mitral)"
-BSNR: "Physician Identification Number"
-Alter: "Age"
-bf_AKLScore2: "AKL Score 2"
-bf_euroSCORE_I: "EuroSCORE I"
-bf_BMI: "BMI (Body Mass Index)"
-bf_OPistHCHAortKath: "Operation - Aortic Catheterization"
-bf_OPistKCHK_AKKath: "Operation - Coronary and Aortic Catheterization"
-bf_StatusBekannt30T: "Status Known at 30 Days Postop"
-bf_TodInnerhalb30T: "Death Within 30 Days Postop"
-bf_IntraprozeduraleKomplikation: "Intraprocedural Complication"
-bf_ArterielleKomplikation: "Arterial Complication"
+# Scores and Calculations
+bf_AKLScore2: akl_score_2
+bf_euroSCORE_I: euroscore_i
+bf_AKL_KATH_Score: akl_catheter_score
+bf_IntraprozeduraleKomplikation: intraoperative_complication
+bf_ArterielleKomplikation: arterial_complication
+MKOEFFN: mitral_valve_coefficient
+MKOEFFNNV: mitral_valve_coefficient_unknown
+EROA: effective_regurgitant_orifice_area
+EROANV: effective_regurgitant_orifice_area_unknown
+MORPH: morphology
+GRAFTSANZAHL: number_of_grafts
+GRAFTSITALINKS: graft_site_left
+GRAFTSSONSTIGE: graft_site_other
+
+# Outcomes and Complications
+EXITUS: exitus
+REEING: reoperation
+REVASK: revascularization
+RISKBEGL: risk_accompanying
+RISKHAEMDYN: risk_hemodynamic
+RISKEMBOLIE: risk_embolism
+LOWCARD: low_output_syndrome
+LOWCARDTH: low_output_syndrome_therapy
+KOMPINFEKT: infection_complication
+INFEKTIONAKUTHCH_1: acute_infection_1
+INFEKTIONAKUTHCH_2: acute_infection_2
+INFEKTIONAKUTHCH_3: acute_infection_3
+BESCHW: complaints
+BLUTSCHW: bleeding_complaint
+BLUTSCHWPOST: bleeding_complaint_postop
+KEINKM: no_cardiac_medication
+PCIDATUM: pci_date
+TROPONIN: troponin
+ERGEBNIS: result
+FIBRVERD: fiber_verdickung
+
+# Insurance and Administrative
+versichertenidgkv: insurance_id_gkv
+versichertenstatusgkv: insurance_status_gkv
+kasseiknr2Stellen: insurance_number_2_digits
+# Cardiac Conditions
+HERZOHRV: heart_atrial
+HERZNG: heart_ventricular
+INSUFF: insufficiency
+SITZPROTH: prosthesis_position
+KOMMIS: commissure
+HAEMATBLUTUN: hematoma_bleeding
+NIERENVERS: kidney_failure
+IOPKOMPJN: intraoperative_complication
+Alter: age_alt
+# Miscellaneous
+IdBogenFeldMutter: form_field_id_mother
+Bogen: form_arch
+VHABL: valve_ablation
+VHFLIMM: valve_flutter
+VHSEPT: valve_septum
+VENAC: vena_cava
+VENACNV: vena_cava_unknown
+OPSCHLUESSEL_1: procedure_code_1
+OPSCHLUESSEL_2: procedure_code_2
+OPSCHLUESSEL_3: procedure_code_3
+OPSCHLUESSEL_4: procedure_code_4
+OPSCHLUESSEL_5: procedure_code_5
+OPSCHLUESSEL_6: procedure_code_6
+OPSCHLUESSEL_7: procedure_code_7
+OPSCHLUESSEL_8: procedure_code_8
+OPSCHLUESSEL_9: procedure_code_9
+OPSCHLUESSEL_10: procedure_code_10
+OPSCHLUESSEL_11: procedure_code_11
+OPSCHLUESSEL_12: procedure_code_12
+OPSCHLUESSEL_13: procedure_code_13
+OPSCHLUESSEL_14: procedure_code_14
+OPSCHLUESSEL_15: procedure_code_15
+OPSCHLUESSEL_16: procedure_code_16
+OPSCHLUESSEL_17: procedure_code_17
+OPSCHLUESSEL_18: procedure_code_18
+OPSCHLUESSEL_19: procedure_code_19
+OPSCHLUESSEL_20: procedure_code_20
+abstOPzerebov: abstract_operation_cerebrovascular
