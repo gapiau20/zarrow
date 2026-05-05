@@ -14,9 +14,9 @@ def get_columns_from_dataframe(df:pd.DataFrame):
 
 def read_tabular_file(filepath:str,**kwargs)->pd.DataFrame:
     """Read a file using pandas based on its extension."""
-    ext = os.path.splitext(filepath)[1].lower()
+    ext = '.'+filepath.split('.')[-2].lower() if '.gz' in filepath else os.path.splitext(filepath)[-1].lower()
 
-    if ext == ".csv":
+    if ext in [".csv",".csv.gz"]:
         return pd.read_csv(filepath, **kwargs)
     elif ext in [".xls", ".xlsx"]:
         return pd.read_excel(filepath, **kwargs)
