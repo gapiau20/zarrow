@@ -40,7 +40,6 @@ class PhysioNetPatientCohort(TabularCohort):
 
 class MIMICPatientCohort(PhysioNetPatientCohort):
     pass
-    ################full cohort building and saving into zarr################
     
     
 

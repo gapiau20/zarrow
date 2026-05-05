@@ -172,7 +172,7 @@ class TabularCohort(BaseCohort):
         processor: processor to apply to each chunk (should be a subclass of DatabaseProcessor)
         '''
         cohort = []
-        for chunk in pd.read_csv(file_path,chunksize=self.chunk_size):
+        for chunk in read_tabular_file(file_path,chunksize=self.chunk_size):
             processed_chunk, zarr_index = processor.process(chunk)
             if not processed_chunk.empty:
                 cohort.append(processed_chunk)

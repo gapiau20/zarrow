@@ -1,7 +1,7 @@
 dataset:
   name: tavi_improve
-  patient:
-    file: data\improve\output_AK.xlsx
+  global:
+    file: data\improve\output_AK.CSV
     columns:
       - Fallnummer
       - Vorgangsnr.
@@ -292,4 +292,232 @@ dataset:
       - ZUGANGKC
       - ZUGANGMKE
     filters: []
-    processor: null
+    processor: 
+      name: EHRDataFrameProcessor
+
+  #varc outcomes
+  # --- 1. Mortality ---
+  mortality:
+    description: "All-cause and cardiovascular mortality endpoints."
+    file: data\improve\output_AK.CSV
+    columns:
+      - Fallnummer
+      - bf_TodInnerhalb30T  # Death within 30 days
+      - STATUS30TAGEPOSTOP  # Status 30 days postoperative
+      - EXITUS               # Death (general)
+      - abstTodEntldatum    # Date of death or discharge
+      - quartalTodesdatum    # Quarter of death
+    filters: []
+    processor: 
+      name: EHRDataFrameProcessor
+  # --- 2. Stroke ---
+  stroke:
+    description: "Neurological events, including stroke and transient ischemic attacks (TIA)."
+    file: data\improve\output_AK.CSV
+    columns:
+      - Fallnummer
+      - CEREBROEREIGNIS      # Cerebrovascular event
+      - CEREBROEREIGNISDAUER # Duration of cerebrovascular event
+      - HIRNEMBOLIE          # Cerebral embolism
+      - RANKINSCHLAGANFALL   # Rankin scale after stroke
+      - RANKINENTL           # Rankin scale at discharge
+    filters: []
+    processor: 
+      name: EHRDataFrameProcessor
+
+  # --- 3. Myocardial Infarction ---
+  myocardial_infarction:
+    description: "Peri-procedural or spontaneous myocardial infarction."
+    columns:
+      - Fallnummer
+      - AUFNBEFUNDINFARKT   # Admission finding: infarction
+      - INFARKTPOSTOP        # Postoperative myocardial infarction
+      - TROPONIN             # Troponin level (biomarker for MI)
+    filters: []
+    processor: 
+      name: EHRDataFrameProcessor
+  # --- 4. Bleeding ---
+  bleeding:
+    description: "Major, minor, or life-threatening bleeding events."
+    file: data\improve\output_AK.CSV
+    columns:
+      - Fallnummer
+      - BLUTUNGJL            # Bleeding present
+      - BLUTSCHW             # Bleeding complaint
+      - BLUTSCHWPOST         # Postoperative bleeding complaint
+      - HAEMATBLUTUN         # Hematoma with bleeding
+      - HAEMATOMJL           # Hematoma present
+      - GEFRUPTUR            # Vascular rupture
+    filters: []
+    processor: 
+      name: EHRDataFrameProcessor
+  # --- 5. Vascular Complications ---
+  vascular_complications:
+    description: "Major vascular complications (e.g., dissection, rupture, occlusion)."
+    file: data\improve\output_AK.CSV
+    columns:
+      - Fallnummer
+      - GEFKOMPLIKAT         # Vascular complication
+      - GEFVERSCHLNR         # Number of vascular occlusions
+      - VASKKOMPLIKAT       # Other vascular complication
+      - DISSEKTION           # Dissection present
+      - AORTDISSEKTION       # Aortic dissection
+      - GEFRUPTUR            # Vascular rupture
+      - DEVICEEMBOLISATION   # Device embolization
+      - DEVICEFEHLPOS        # Device malposition
+    filters: []
+    processor: 
+          name: EHRDataFrameProcessor
+  # --- 6. Acute Kidney Injury (AKI) ---
+  acute_kidney_injury:
+    description: "Renal function deterioration post-TAVI."
+    file: data\improve\output_AK.CSV
+    columns:
+      - Fallnummer
+      - AKINSUFFIZIENZ       # Acute kidney injury
+      - KREATININWERTMGDL    # Creatinine level (mg/dL)
+      - KREATININWERTMOLL    # Creatinine level (mmol/L)
+      - bf_KreatininPraeMGDL # Preoperative creatinine level (mg/dL)
+      - NIERENVERS           # Kidney failure
+    filters: []
+    processor: 
+      name: EHRDataFrameProcessor
+  # --- 7. Conduction Disturbances and Arrhythmias ---
+  conduction_disturbances:
+    description: "New conduction disturbances requiring pacemaker or other interventions."
+    file: data\improve\output_AK.CSV
+    columns:
+      - Fallnummer
+      - AUFNBEFUNDSMTRAEGER  # Admission finding: pacemaker carrier
+      - ENTLASSSMTRAEGER     # Discharge pacemaker carrier
+      - AUFNRHYTHMUS         # Admission rhythm
+      - RHYTHMUSSTOERUNG     # Rhythm disturbance
+      - REANIMPOSTOP         # Postoperative resuscitation
+    filters: []
+    processor: 
+          name: EHRDataFrameProcessor
+  # --- 8. Structural Valve Deterioration ---
+  structural_valve_deterioration:
+    description: "Deterioration of valve function over time."
+    file: data\improve\output_AK.CSV
+    columns:
+      - Fallnummer
+      - AORTENKLAPPENSTENOSE # Aortic valve stenosis
+      - AORTREGURGITATION     # Aortic regurgitation
+      - ANNULUSRUPTUR        # Annulus rupture
+      - SEGELPROLAPS         # Leaflet prolapse
+      - FLAILLEAFLET          # Flail leaflet
+      - LECKAGE              # Leakage present
+      - INSUFF               # Valve insufficiency
+      - SITZPROTH            # Prosthesis position
+    filters: []
+    processor: 
+      name: EHRDataFrameProcessor
+  # --- 9. Valve Thrombosis and Endocarditis ---
+  valve_thrombosis_endocarditis:
+    description: "Valve-related thrombosis or infection."
+    file: data\improve\output_AK.CSV
+    columns:
+      - Fallnummer
+      - ENDOKARD             # Endocarditis
+      - THROMB               # Thrombus present
+      - VEGET                # Vegetation present
+      - INFEKTIONAKUTHCH_1   # Acute infection type 1
+      - INFEKTIONAKUTHCH_2   # Acute infection type 2
+      - INFEKTIONAKUTHCH_3   # Acute infection type 3
+      - KOMPLINFEKT          # Infection complication
+    filters: []
+    processor: 
+      name: EHRDataFrameProcessor
+  # --- 10. Reintervention and Rehospitalization ---
+  reintervention:
+    description: "Repeat procedures or hospitalizations related to the index TAVI."
+    file: data\improve\output_AK.CSV
+    columns:
+      - Fallnummer
+      - REEING               # Reoperation required
+      - REVASK               # Revascularization performed
+      - KONVERSION           # Conversion during procedure
+      - KONVEREINGRIFF       # Conversion procedure type
+      - WECHSEING            # Procedure change performed
+      - WEITEINGR            # Additional procedure performed
+    processor: 
+      name: EHRDataFrameProcessor
+  # --- 11. Functional Status and Quality of Life ---
+  functional_status:
+    description: "Patient-reported outcomes and functional assessments."
+    file: data\improve\output_AK.CSV
+    columns:
+      - Fallnummer
+      - RANKINENTL           # Rankin scale at discharge
+      - RANKINSCHLAGANFALL   # Rankin scale after stroke
+      - FRAILTY              # Frailty score
+      - ASA                  # ASA classification
+      - LVEF                 # Left ventricular ejection fraction
+      - LVDEKOMPENSATION     # Left ventricular decompensation
+    filters: []
+    processor: 
+      name: EHRDataFrameProcessor
+  # --- 12. Hemodynamic Valve Performance ---
+  hemodynamic_performance:
+    description: "Post-procedural valve function and hemodynamic parameters."
+    file: data\improve\output_AK.CSV
+    columns:
+      - Fallnummer
+      - SYSTPULMDR           # Systemic pulmonary pressure
+      - SYSTPULMDRNV         # Systemic pulmonary pressure unknown
+      - LVEF                 # Left ventricular ejection fraction
+      - LVESD                # Left ventricular end-systolic dimension
+      - RVOL                 # Right ventricular volume
+      - PULMKL               # Pulmonary valve involvement
+      - TRIKUSP              # Tricuspid valve involvement
+    filters: []
+    processor: 
+      name: EHRDataFrameProcessor
+  # --- 13. Procedural Success ---
+  procedural_success:
+    description: "Technical and clinical success of the TAVI procedure."
+    file: data\improve\output_AK.CSV
+    columns:
+      - Fallnummer
+      - bf_IstErsteOP        # Is first operation
+      - FUEHRENDEROPS        # Primary procedure
+      - OPDAUER              # Operation duration
+      - DLDAUER              # Cross-clamp duration
+      - DRINGLICHKEIT        # Urgency level
+      - bf_OPistHCHAortKath  # Operation is aortic catheter procedure
+      - bf_OPistKCHK_AKKath  # Operation is coronary catheter procedure
+    filters: []
+    processor: 
+      name: EHRDataFrameProcessor
+  # --- 14. Access Site Complications ---
+  access_site_complications:
+    description: "Complications related to the vascular access site."
+    file: data\improve\output_AK.CSV
+    columns:
+      - Fallnummer
+      - ZUGANGHCH            # Access route: heart surgery
+      - ZUGANGKC             # Access route: cardiac catheter
+      - ZUGANGMKE            # Access route: mechanical circulatory support
+      - ZUGKOMPLSONST        # Other access complications
+      - PERIKARDTAMPO        # Pericardial tamponade
+      - PERIKARDTAMPOST      # Postoperative pericardial tamponade
+    filters: []
+    processor: 
+      name: EHRDataFrameProcessor
+  # --- 15. Other Adverse Events ---
+  other_adverse_events:
+    description: "Miscellaneous adverse events not covered in other categories."
+    file: data\improve\output_AK.CSV
+    columns:
+      - Fallnummer
+      - MEDIASTINITIS        # Mediastinitis
+      - LOWCARD              # Low output syndrome
+      - LOWCARDTH            # Low output syndrome therapy
+      - KOMPLMECHJN          # Mechanical complication
+      - IOPKOMPJN            # Intraoperative complication
+      - bf_IntraprozeduraleKomplikation  # Intraoperative complication present
+      - bf_ArterielleKomplikation  # Arterial complication present
+    filters: []
+    processor: 
+      name: EHRDataFrameProcessor
