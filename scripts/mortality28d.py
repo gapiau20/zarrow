@@ -9,32 +9,21 @@ import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 
-from modules.mimic_clinical_cohort import PhysioNetPatientCohort
-from modules.db_filters import AgeFilter,SexFilter,ICDFilter,LabEventFilter
+from modules.physionet_cohort import MIMICPatientCohort,get_schema_from_config
 import icdlookup
 import pandas as pd
     
-
-
-tmp_dir='data\\tmp\\mimic-iv'
-filters={
-    'patient': [AgeFilter('anchor_age',18,99)],
-         'diagnoses': [ICDFilter('icd_code',['I21*'])],
-         'labevents': [LabEventFilter('itemid',[51652,50963,50811,50907,50931,50910])]
-         }
-cohort_sex_age=PhysioNetPatientCohort('mimic-iv-demo',
-                                    'hosp/patients.csv.gz',
-                                    'hosp/admissions.csv.gz',
-                                    'hosp/diagnoses_icd.csv.gz',
-                                    'hosp/labevents.csv.gz',
-                                    tmp_dir,'subject_id',
-                                    filters=filters)
-
+# --- Build cohort with filters ---
 from pathlib import Path
-from modules.zarr_tools import ZarrWriter,ZarrLoader
-zarr_path=Path('data/zarr/clinical')
-cohort_sex_age.build_and_save(zarr_path)
 
+tmp_dir='D:\\mimiciv-tmp\\'
+schema=get_schema_from_config(Path('config/mimic_iv_infarction.yaml'))
+cohort=MIMICPatientCohort(tmp_dir,'subject_id',schema=schema)
+cohort.build_and_save('data\\cohort.zarr')
+
+# --- Load cohort and prepare dataset for modeling ---
+from modules.zarr_tools import ZarrLoader
+zarr_path='data\\cohort.zarr'
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import OneHotEncoder
@@ -46,15 +35,17 @@ from sklearn.base import clone
 
 loader=ZarrLoader(zarr_path)
 # --- merge patient, admission, demographics as before ---
-df_patient = loader.load_group("patient")
-df_adm = loader.load_group("admission")
-df_demo = loader.load_group("demographics")
-df_diag=loader.load_group("diagnoses")
+df_patient = pd.DataFrame(loader.load_group("patient"))
+df_adm = pd.DataFrame(loader.load_group("admission"))
+df_demo = pd.DataFrame(loader.load_group("demographics"))
+df_diag=pd.DataFrame(loader.load_group("diagnoses"))
+df_social=pd.DataFrame(loader.load_group("social"))
+
 
 # merge patient + admission + demographics
 df = df_adm.merge(df_patient, on='subject_id', how='left')
 df = df.merge(df_demo, on='subject_id', how='left')
-
+df = df.merge(df_social, on=['hadm_id', 'subject_id'], how='left')
 # merge diagnoses
 df = df.merge(df_diag, on=['hadm_id', 'subject_id'], how='left')
 df["admittime"] = pd.to_datetime(df["admittime"])

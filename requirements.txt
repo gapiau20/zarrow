@@ -15,6 +15,7 @@ torchmetrics
 tqdm
 pyyaml
 requests
+physionet
 
 pytest
 #icd

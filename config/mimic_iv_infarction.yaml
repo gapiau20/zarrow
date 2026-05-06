@@ -1,5 +1,5 @@
 dataset:
-  name: mimic-iv
+  name: mimiciv
   patient:
     file: 'hosp/patients.csv.gz'
     columns: 
