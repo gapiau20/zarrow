@@ -20,9 +20,6 @@ class PhysioNetPatientCohort(TabularCohort):
     '''
     Include patients based on criteria from patient characteristics only.
     Include all hospitals admissions for the selected patients, but no other modalities (e.g. lab values) for now.
-
- 
-
     ''' 
 
     def download_file(self,file): 
@@ -32,7 +29,7 @@ class PhysioNetPatientCohort(TabularCohort):
         full_paths = [file]
         for p in full_paths:
             print("Checking:", p, "->", os.path.exists(p))
-        if all(os.path.exists(p) for p in full_paths):
+        if all(os.path.exists(p) for p in full_paths) or all(os.path.exists(os.path.join(self.tmp_dir,p)) for p in full_paths):
             print("Files already present. Skipping download.")
             return
         print("Downloading files from PhysioNet...")

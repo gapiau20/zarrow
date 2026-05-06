@@ -7,12 +7,17 @@ Example usage:
     filtered_df=filter.apply(df)
 '''
 import pandas as pd
+FILTER_REGISTRY = {}
 ######filtering functions#########
 class BaseFilter: 
     '''
     Condition filter to apply on pd.dataframe
     for cohort extraction
     '''
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        if cls is not BaseFilter:
+            FILTER_REGISTRY[cls.__name__] = cls
     def apply(self,df:pd.DataFrame)->pd.DataFrame:
         raise NotImplementedError('Implement in daughter class.')
 #####Patient filters######
@@ -112,8 +117,4 @@ class CharteventFilter(EventFilter):
         super().__init__(chartevent_column, chartevents)
 
 def register_filters():
-    processor_map = {}
-    for name, obj in globals().items():
-        if isinstance(obj, type) and issubclass(obj, BaseFilter):
-            processor_map[name] = obj
-    return processor_map
+    return FILTER_REGISTRY

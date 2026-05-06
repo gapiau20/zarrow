@@ -25,7 +25,7 @@ class IMPROVECohort(TabularCohort):
         full_paths = [file]
         for p in full_paths:
             print("Checking:", p, "->", os.path.exists(p))
-        if all(os.path.exists(p) for p in full_paths):
+        if all(os.path.exists(p) for p in full_paths) or all(os.path.exists(os.path.join(self.tmp_dir,p)) for p in full_paths):
             print("Files already present. Skipping download.")
             
             if os.path.exists(file) and not os.path.exists(os.path.join(self.tmp_dir,file)):
