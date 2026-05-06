@@ -3,10 +3,16 @@ import os
 import pandas as pd
 from .db_filters import BaseFilter
 
+PROCESSOR_REGISTRY = {}
 class DatabaseProcessor:
     '''
     Base class for database processors
     '''
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        if cls is not DatabaseProcessor:
+            PROCESSOR_REGISTRY[cls.__name__] = cls
+
     def __init__(self, zarr_index:str,columns:list[str]=None, filters:list[BaseFilter]=[]):
         self.zarr_index=zarr_index
         self.columns=columns
@@ -45,8 +51,4 @@ class PatientPreprocessor(DatabaseProcessor):
     pass
 
 def register_database_processors():
-    processor_map = {}
-    for name, obj in globals().items():
-        if isinstance(obj, type) and issubclass(obj, DatabaseProcessor):
-            processor_map[name] = obj
-    return processor_map
+    return PROCESSOR_REGISTRY
