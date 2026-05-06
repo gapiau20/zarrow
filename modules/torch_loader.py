@@ -7,7 +7,7 @@ from torch.utils.data import Dataset
 
 class MultimodalDataset(Dataset):
     def __init__(self, zarr_path):
-        self.data = zarr.load(zarr_path)
+        self.data = zarr.open(zarr_path, mode="r")
         self.keys = list(self.data.keys())
 
     def __len__(self):
@@ -16,4 +16,4 @@ class MultimodalDataset(Dataset):
     def __getitem__(self, idx):
         item = self.data[str(self.keys[idx])]
         # return tabular, ecg, cxr, text as torch tensors
-        return {k: torch.tensor(v) for k,v in item.items()}
+        return {k: torch.tensor(item[k][:]) for k in item.array_keys()}

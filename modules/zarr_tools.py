@@ -69,5 +69,6 @@ class ZarrLoader:
         """
         load index subject_id
         """
-        arr = self.store[self.store.array_keys()[0]][:] if len(self.store.array_keys())>0 else np.array([])
+        keys = list(self.store.array_keys())
+        arr = self.store[keys[0]][:] if keys else np.array([])
         return arr
