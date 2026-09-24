@@ -40,7 +40,7 @@ La définition d'une cohorte est entièrement **déclarative** : un fichier YAML
                           │
                           ▼
    build_cohort() : pour chaque groupe
-       ├─ download_file()   (PhysioNet via wfdb, ou copie locale)
+       ├─ download_file()   (PhysioNet authentifié, ou copie locale)
        └─ process_chunks()  lecture CSV par blocs
                             → filtres → sélection des colonnes
                           │
@@ -60,13 +60,14 @@ La définition d'une cohorte est entièrement **déclarative** : un fichier YAML
 | [modules/cohort.py](modules/cohort.py) | Cœur du framework : lecture des fichiers tabulaires, chargement du schéma YAML, classes `BaseCohort` et `TabularCohort` |
 | [modules/db_filters.py](modules/db_filters.py) | Filtres composables (`AgeFilter`, `SexFilter`, `ICDFilter`, `LabEventFilter`…) et leur registre automatique |
 | [modules/db_processors.py](modules/db_processors.py) | Processeurs appliqués à chaque bloc (`EHRDataFrameProcessor`) et leur registre automatique |
-| [modules/physionet_cohort.py](modules/physionet_cohort.py) | Cohortes PhysioNet/MIMIC : téléchargement des tables avec `wfdb.io.dl_files` |
+| [modules/physionet_cohort.py](modules/physionet_cohort.py) | Cohortes PhysioNet/MIMIC : téléchargement des tables manquantes dans `tmp_dir` |
 | [modules/improve_cohort.py](modules/improve_cohort.py) | Cohortes à partir de fichiers locaux (registre IMPROVE) : copie du fichier dans le répertoire temporaire |
 | [modules/zarr_tools.py](modules/zarr_tools.py) | `ZarrWriter` (DataFrame → Zarr) et `ZarrLoader` (Zarr → dict / DataFrame) |
 | [modules/torch_loader.py](modules/torch_loader.py) | `MultimodalDataset`, un `torch.utils.data.Dataset` lisant un store Zarr |
 | [modules/features.py](modules/features.py) | Classe de base `FeatureExtractor` pour les futures modalités (ECG, CXR, waveforms, texte). Squelette seulement |
 | [modules/utils.py](modules/utils.py) | Utilitaires CIM : détection de la version ICD-9/ICD-10, normalisation des codes |
-| [modules/download.py](modules/download.py), [modules/multimodal.py](modules/multimodal.py) | Modules vides (docstring seule), prévus pour la suite |
+| [modules/download.py](modules/download.py) | Téléchargement PhysioNet authentifié (projets credentialed), en streaming, avec reprise |
+| [modules/multimodal.py](modules/multimodal.py) | Module vide (docstring seule), prévu pour la suite |
 | [scripts/mortality28d.py](scripts/mortality28d.py) | Exemple de bout en bout : cohorte d'infarctus du myocarde sous MIMIC-IV, prédiction de la mortalité à 28 jours, analyse par sous-groupes |
 | [config/](config/) | Configurations de cohortes (`mimiciv_demo.yaml`, `mimiciii_demo.yaml`, `mimic_iv_infarction.yaml`…) |
 | [tests/](tests/) | Tests unitaires pytest, un fichier par module |
@@ -89,6 +90,33 @@ pip install -r requirements-dev.txt    # + pytest, ipykernel
 ```
 
 Par défaut, PyTorch est installé dans sa version CPU. Pour le GPU, décommentez la ligne `--extra-index-url https://download.pytorch.org/whl/cu126` de `requirements.txt`.
+
+### Accès aux bases PhysioNet à accès restreint (MIMIC-IV…)
+
+Les projets publics (`mimic-iv-demo`, `mimiciii-demo`) se téléchargent sans compte. MIMIC-IV complet demande un compte PhysioNet **credentialed** qui a **signé l'accord d'utilisation (DUA)** du projet. Les identifiants ne sont jamais écrits dans le dépôt. Ils sont lus, dans cet ordre :
+
+1. Dans les variables d'environnement `PHYSIONET_USERNAME` et `PHYSIONET_PASSWORD` :
+   ```powershell
+   # PowerShell (session courante)
+   $env:PHYSIONET_USERNAME = "mon_user"
+   $env:PHYSIONET_PASSWORD = "mon_mot_de_passe"
+   ```
+2. Sinon, dans le fichier `~/.netrc` (sous Windows : `%USERPROFILE%\_netrc`), que `requests` lit automatiquement :
+   ```
+   machine physionet.org
+   login mon_user
+   password mon_mot_de_passe
+   ```
+   Protégez ce fichier : sous Linux/macOS, `chmod 600 ~/.netrc`.
+
+Les fichiers sont téléchargés depuis `https://physionet.org/files/<name>/<version>/<file>`, en flux (sans tout charger en mémoire), vers `<tmp_dir>/<file>.part`. Ils ne sont renommés qu'une fois complets. Un téléchargement interrompu reprend donc là où il s'était arrêté (en-tête HTTP `Range`). En cas de refus (HTTP 401/403), une `PermissionError` rappelle de vérifier les identifiants et la signature du DUA.
+
+Pour vérifier l'accès avant de lancer `labevents`, qui pèse plusieurs Go :
+
+```python
+from modules.download import download_physionet_file
+download_physionet_file("mimiciv", "3.1", "hosp/patients.csv.gz", "data/mimiciv-tmp")
+```
 
 Versions validées dans l'environnement de développement : `zarr 3.2.0`, `pandas 3.0.2`, `numpy 2.4.4`.
 
@@ -117,7 +145,8 @@ df_adm = loader.load_group("admission", as_df=True)
 
 ```yaml
 dataset:
-  name: mimic-iv-demo            # identifiant PhysioNet passé à wfdb.dl_files
+  name: mimic-iv-demo            # identifiant du projet PhysioNet
+  version: '2.2'                 # version du projet (obligatoire pour le téléchargement)
   <groupe>:                      # nom libre, devient un groupe Zarr
     file: hosp/patients.csv.gz   # chemin relatif à tmp_dir (et au dépôt PhysioNet)
     inclusion: true              # optionnel : ses filtres restreignent TOUS les groupes
@@ -193,7 +222,11 @@ Le filtre devient alors utilisable dans le YAML sous `name: LengthOfStayFilter`.
 - `PatientPreprocessor` est un squelette sans implémentation.
 
 ### `modules/physionet_cohort.py`
-- `PhysioNetPatientCohort.download_file(file)` télécharge `file` depuis le dépôt PhysioNet `schema['name']` vers `tmp_dir` (`wfdb.io.dl_files`, `keep_subdirs=True`), sauf si `tmp_dir/file` existe déjà.
+- `PhysioNetPatientCohort.download_file(file)` télécharge `file` depuis le projet PhysioNet `schema['name']`, en version `schema['version']`, vers `tmp_dir/file`, sauf si ce fichier existe déjà. Il lève `ValueError` si `version` manque dans la config.
+
+### `modules/download.py`
+- `physionet_auth()` renvoie `(user, password)` à partir des variables d'environnement, ou `None` : `requests` se rabat alors sur `~/.netrc`.
+- `download_physionet_file(db, version, file, dl_dir)` télécharge le fichier en streaming, par blocs de 1 Mo, vers un fichier `.part`, avec reprise et un message d'erreur explicite en cas de 401/403. Il renvoie le chemin local.
 - `MIMICPatientCohort` est un alias sémantique.
 
 ### `modules/improve_cohort.py`
@@ -245,7 +278,7 @@ Chaque groupe est une table « longue » : une ligne par enregistrement, et non 
 python scripts/mortality28d.py
 ```
 
-> MIMIC-IV (version complète) est une base à **accès restreint** (credentialed) sur PhysioNet. `wfdb.dl_files` ne gère pas l'authentification ; vérifiez ce point dans votre environnement. En pratique, il est plus sûr de télécharger les tables manuellement (`wget --user … -r`) dans `tmp_dir` : `download_file` ignorera alors le téléchargement.
+> MIMIC-IV complet est à **accès restreint** : configurez vos identifiants PhysioNet (voir [Accès aux bases PhysioNet à accès restreint](#accès-aux-bases-physionet-à-accès-restreint-mimic-iv)). Vous pouvez aussi déposer les tables vous-même dans `data/mimiciv-tmp/` (par exemple avec `wget --user … -r`) : un fichier déjà présent n'est pas retéléchargé.
 
 ## Tests
 
@@ -253,7 +286,7 @@ python scripts/mortality28d.py
 python -m pytest -q
 ```
 
-État actuel : **37 tests réussis**, dont des tests de non-régression pour chaque correctif ci-dessous.
+État actuel : **44 tests réussis**, dont des tests de non-régression pour chaque correctif ci-dessous.
 
 ---
 
@@ -285,6 +318,7 @@ Chaque bug ci-dessous a été **reproduit** avec un script avant correction. **T
 | 16 | ⚪ Perf | [modules/cohort.py](modules/cohort.py#L78) | `chunk_size=64` et lecture de toutes les colonnes |
 | 17 | ⚪ Qualité | [modules/utils.py](modules/utils.py#L3-L13) | Codes ICD-9 `E`/`V` classés en ICD-10, chaîne vide |
 | 18 | ⚪ Qualité | [requirements.txt](requirements.txt) | Versions non fixées, dépendances inutilisées |
+| 19 | 🔴 Critique | [modules/download.py](modules/download.py) | MIMIC-IV complet ne peut pas être téléchargé (pas d'authentification PhysioNet) |
 
 ---
 
@@ -682,13 +716,19 @@ def find_icd_version(code:str)->int:
 - `ipykernel` et `pytest` relèvent du développement : déplacés dans `requirements-dev.txt`.
 - L'index CUDA imposé (`cu126`) empêche une installation CPU simple : la ligne est désormais commentée.
 
+### 19. Téléchargement de MIMIC-IV impossible (authentification PhysioNet)
+
+**Constat.** `wfdb.io.dl_files` ne transmet aucun identifiant : PhysioNet répond `403` pour `mimiciv/3.1` (vérifié), alors que le démo répond `200`. En plus, `wfdb` lit chaque fichier entièrement en mémoire (`f.read()`), ce qui pose problème pour `labevents.csv.gz`, et ne distingue pas un fichier partiel d'un fichier complet.
+
+**Correctif appliqué.** [modules/download.py](modules/download.py) implémente un téléchargement authentifié, en streaming et avec reprise (voir [Installation](#accès-aux-bases-physionet-à-accès-restreint-mimic-iv)). `PhysioNetPatientCohort` l'utilise à la place de `wfdb`. Les configs MIMIC portent désormais une clé `version`, et `BaseCohort` ignore les clés de métadonnées (`name`, `version`…) qui ne sont pas des groupes. Le téléchargement réel a été validé sur le démo MIMIC-IV, ainsi que le refus explicite sur MIMIC-IV sans identifiants. Le cas « identifiants valides » n'a pas pu être testé ici.
+
 ### Autres points (hors bugs)
 
 - `remove_tmp_dir()` est commenté dans `build_cohort` ([ligne 149](modules/cohort.py#L149), TODO) : les fichiers temporaires s'accumulent.
 - `ZarrLoader.load_index()` suppose que l'index est le **premier** array racine. Il vaudrait mieux lire `self.store[index_id]`.
 - Les données texte sont stockées telles quelles : les dates restent des chaînes, à convertir à la lecture.
-- Modules vides ou squelettes : `main.py`, `modules/download.py`, `modules/multimodal.py`, les méthodes de `modules/features.py` et `PatientPreprocessor`.
-- `tests/test_download.py`, `tests/test_multimodal.py` et `tests/test_features.py` ne testent que l'existence des modules.
+- Modules vides ou squelettes : `main.py`, `modules/multimodal.py`, les méthodes de `modules/features.py` et `PatientPreprocessor`.
+- `tests/test_multimodal.py` et `tests/test_features.py` ne testent que l'existence des modules.
 
 ---
 

@@ -22,7 +22,8 @@ def test_multimodal_dataset_one_item_per_subject(tmp_path):
     dataset = MultimodalDataset(path, "subject_id", ["patient", "labs"])
 
     assert len(dataset) == 2
+    assert dataset.columns["patient"] == ["age", "subject_id"]  # numeric only, sorted by name
     first = dataset[0]
-    assert first["patient"].tolist() == [[1.0, 50.0]]  # string column dropped
+    assert first["patient"].tolist() == [[50.0, 1.0]]
     assert first["labs"].tolist() == [[1.0, 4.0], [1.0, 5.0]]
-    assert dataset[1]["labs"].numel() == 0  # subject without labs
+    assert dataset[1]["labs"].shape == (0, 2)  # subject without labs

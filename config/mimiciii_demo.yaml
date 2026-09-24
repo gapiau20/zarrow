@@ -1,5 +1,6 @@
 dataset:
   name: mimiciii-demo
+  version: '1.4'            # PhysioNet project version (https://physionet.org/files/mimiciii-demo/1.4/)
   patient:
     file: 'PATIENTS.csv'
     columns: 

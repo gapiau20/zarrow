@@ -12,11 +12,17 @@ class MultimodalDataset(Dataset):
     One item per subject of the zarr index.
     Returns, for each requested group, the numeric columns of that subject's rows as a float tensor.
     Items have a variable number of rows: use a padding collate_fn with a DataLoader.
+    Zarr does not keep the column order, so columns are sorted by name (see self.columns).
     '''
     def __init__(self, zarr_path:str, index_name:str, groups:list[str]):
         loader = ZarrLoader(zarr_path)
         self.ids = loader.store[index_name][:]
-        self.tables = {g: dict(tuple(loader.load_group(g, as_df=True).groupby(index_name))) for g in groups}
+        self.columns = {}
+        self.tables = {}
+        for g in groups:
+            df = loader.load_group(g, as_df=True)
+            self.columns[g] = sorted(df.select_dtypes("number").columns)
+            self.tables[g] = dict(tuple(df[self.columns[g]].groupby(df[index_name])))
 
     def __len__(self):
         return len(self.ids)
@@ -26,6 +32,8 @@ class MultimodalDataset(Dataset):
         out = {}
         for g, rows_by_id in self.tables.items():
             rows = rows_by_id.get(sid)
-            values = rows.select_dtypes("number").to_numpy() if rows is not None else np.empty((0, 0))
+            # contiguous copy: column reordering can yield negative strides, which torch rejects
+            values = np.ascontiguousarray(rows.to_numpy(dtype=np.float32)) if rows is not None \
+                else np.empty((0, len(self.columns[g])), dtype=np.float32)
             out[g] = torch.tensor(values, dtype=torch.float32)
         return out

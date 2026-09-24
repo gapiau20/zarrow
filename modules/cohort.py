@@ -119,7 +119,7 @@ class BaseCohort:
 
         #create the processor for each group in the schema
         for group_key, group_info in self.schema.items():
-            if group_key in ['name']:
+            if not isinstance(group_info, dict):  # dataset metadata (name, version...), not a group
                 continue
             #get the processor class from the schema
             processor_cls_name=(group_info.get('processor') or {}).get('name')
@@ -144,7 +144,7 @@ class BaseCohort:
             self.processors[group_key]=processor_cls(zarr_index=self.zarr_index, columns=group_info.get('columns'), filters=filters)
 
         # groups whose filters define who belongs to the cohort (intersection of their subjects)
-        self.inclusion_groups=[k for k, v in self.schema.items() if k!='name' and v.get('inclusion', False)]
+        self.inclusion_groups=[k for k, v in self.schema.items() if isinstance(v, dict) and v.get('inclusion', False)]
         return
             
     def remove_tmp_dir(self):

@@ -1,5 +1,6 @@
 dataset:
   name: mimiciv
+  version: '3.1'            # PhysioNet project version (https://physionet.org/files/mimiciv/3.1/)
   patient:
     file: 'hosp/patients.csv.gz'
     columns: 

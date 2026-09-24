@@ -1,5 +1,6 @@
 dataset:
   name: mimic-iv-demo
+  version: '2.2'            # PhysioNet project version (https://physionet.org/files/mimic-iv-demo/2.2/)
   patient:
     file: 'hosp/patients.csv.gz'
     columns: 

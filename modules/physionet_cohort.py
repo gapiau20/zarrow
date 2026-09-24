@@ -1,11 +1,11 @@
 '''
 Utilities to build cohorts into a zarr database.
 '''
-from wfdb.io import dl_files
 import os
 
 # relative imports
 from .cohort import TabularCohort, get_schema_from_config  # get_schema_from_config re-exported for scripts
+from .download import download_physionet_file
 
 
 class PhysioNetPatientCohort(TabularCohort):
@@ -21,8 +21,11 @@ class PhysioNetPatientCohort(TabularCohort):
         if os.path.exists(os.path.join(self.tmp_dir, file)):
             print(f"{file} already present in {self.tmp_dir}. Skipping download.")
             return
-        print("Downloading files from PhysioNet...")
-        dl_files(self.db,self.tmp_dir,[file],keep_subdirs=True)
+        version=self.schema.get('version')
+        if version is None:
+            raise ValueError(f"Missing 'version' for PhysioNet project {self.db} in the config (e.g. version: '3.1').")
+        print(f"Downloading {file} from PhysioNet ({self.db}/{version})...")
+        download_physionet_file(self.db, str(version), file, self.tmp_dir)
 
 class MIMICPatientCohort(PhysioNetPatientCohort):
     pass
