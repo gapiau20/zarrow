@@ -35,8 +35,9 @@ dataset:
     processor:
       name: EHRDataFrameProcessor
 
-  demographics: 
+  demographics:
     file: hosp/patients.csv.gz
+    inclusion: true   # AgeFilter restricts the whole cohort
     columns:
       - subject_id
       - gender
@@ -54,6 +55,7 @@ dataset:
           age_max: 99
   diagnoses:
     file: hosp/diagnoses_icd.csv.gz
+    inclusion: true   # ICDFilter restricts the whole cohort
     columns:
       - subject_id
       - hadm_id
@@ -64,7 +66,7 @@ dataset:
       - name: ICDFilter
         parameters:
           diag_column: icd_code
-          icd_codes: ['I21*']
+          icd_codes: ['I21*', 'I22*', '410*']   # ICD-10 acute + subsequent MI, ICD-9 AMI
     processor:
       name: EHRDataFrameProcessor
   labs:

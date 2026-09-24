@@ -19,7 +19,18 @@ def test_ehr_dataframe_processor_process_filters_and_columns():
     assert processed.columns.tolist() == ["subject_id", "value"]
 
 
+def test_filters_default_is_not_shared_between_instances():
+    EHRDataFrameProcessor("subject_id").add_filters([SexFilter("sex", "M")])
+    assert EHRDataFrameProcessor("subject_id").filters == []
+
+
+def test_ehr_dataframe_processor_without_columns_keeps_all():
+    df = pd.DataFrame({"subject_id": [1, 2], "value": [10, 20]})
+    processed, _ = EHRDataFrameProcessor("subject_id").process(df)
+    assert processed.columns.tolist() == ["subject_id", "value"]
+
+
 def test_register_database_processors_returns_processor_types():
     registry = register_database_processors()
-    assert "DatabaseProcessor" in registry
+    assert "DatabaseProcessor" not in registry  # abstract base is not registered
     assert "EHRDataFrameProcessor" in registry

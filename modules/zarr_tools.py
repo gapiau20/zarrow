@@ -8,38 +8,33 @@ class ZarrWriter:
         self.index_id=index_id
     def write_dataframe(self, df, group_name):
         group = self.store.require_group(group_name)
+        chunks = (max(1, min(len(df), 1024)),)
         for col in df.columns:
             data = df[col].to_numpy(copy=True)
 
-            # strings -> bytes (stable Zarr V3)
+            # strings -> variable-length UTF-8 (Zarr v3 spec), missing values -> ''
             if data.dtype == object:
-                data = data.astype("S")  # string -> bytes
+                data = pd.Series(data).fillna("").astype(str).to_numpy(dtype=object)
+                arr = group.create_array(name=col, shape=data.shape, dtype=str, chunks=chunks, overwrite=True)
+                arr[:] = data
+                continue
 
-            # int64/float64 -> int32/float32
-            elif data.dtype.kind in ["i"]:  # integer
+            # int64/float64 -> int32/float32, only when values fit
+            if data.dtype.kind == "i" and (len(data) == 0 or (
+                    data.min() >= np.iinfo(np.int32).min and data.max() <= np.iinfo(np.int32).max)):
                 data = data.astype("int32")
-            elif data.dtype.kind in ["f"]:  # float
+            elif data.dtype.kind == "f":
                 data = data.astype("float32")
 
-            # delete if already existing
-            if col in group:
-                del group[col]
-
-            # create_array with chunks
-            group.create_array(
-                name=col,
-                data=data,
-                chunks=(min(len(data), 1024),),
-                overwrite=True
-        )
+            group.create_array(name=col, data=data, chunks=chunks, overwrite=True)
 
     def write_index(self, subject_ids:np.array):
         self.store.create_array(
-        name=self.index_id,
-        data=subject_ids,
-        chunks=(min(len(subject_ids), 1024),),
-                overwrite=True
-                )
+            name=self.index_id,
+            data=subject_ids,
+            chunks=(max(1, min(len(subject_ids), 1024)),),
+            overwrite=True
+        )
         
 class ZarrLoader:
     def __init__(self, zarr_path:str):
@@ -56,9 +51,10 @@ class ZarrLoader:
 
         for col in group.array_keys():
             arr = group[col][:]
-            # bytes -> str
-            if arr.dtype.kind == "S":
-                arr = arr.astype(str)
+            if arr.dtype.kind == "S":      # stores written by the previous version (utf-8 bytes)
+                arr = np.char.decode(arr, "utf-8")
+            elif arr.dtype.kind == "T":    # numpy StringDType -> object for pandas
+                arr = arr.astype(object)
             data_dict[col] = arr
 
         if as_df:

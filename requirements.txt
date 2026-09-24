@@ -1,14 +1,14 @@
-numpy
+numpy>=2
 scipy
 wfdb
-pandas
-zarr
-ipykernel
+pandas>=2.2
+zarr>=3.1
 pillow
 scikit-learn
 openpyxl
 
- --extra-index-url https://download.pytorch.org/whl/cu126
+# GPU (CUDA 12.6) wheels: uncomment the next line; leave it commented for the CPU build
+# --extra-index-url https://download.pytorch.org/whl/cu126
 torch
 torchvision
 torchmetrics
@@ -16,8 +16,3 @@ tqdm
 pyyaml
 requests
 physionet
-
-pytest
-#icd
-icdmap
-icdlookup

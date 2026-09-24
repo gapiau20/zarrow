@@ -1,4 +1,5 @@
-import zarr
+import numpy as np
+import pandas as pd
 
 torch_import_error = None
 try:
@@ -7,20 +8,21 @@ except ImportError as err:
     torch_import_error = err
 
 from modules.torch_loader import MultimodalDataset
+from modules.zarr_tools import ZarrWriter
 
 
-def test_multimodal_dataset_loads_zarr(tmp_path):
+def test_multimodal_dataset_one_item_per_subject(tmp_path):
     assert torch_import_error is None, f"torch is required for this test: {torch_import_error}"
-    import numpy as np
 
-    path = tmp_path / "data.zarr"
-    store = zarr.open(str(path), mode="w")
-    group = store.require_group("0")
-    group.create_array("a", data=np.array([1, 2, 3], dtype=np.int32))
-    group.create_array("b", data=np.array([4.0, 5.0, 6.0], dtype=np.float32))
-    dataset = MultimodalDataset(str(path))
+    path = str(tmp_path / "data.zarr")
+    writer = ZarrWriter(path, "subject_id")
+    writer.write_dataframe(pd.DataFrame({"subject_id": [1, 2], "age": [50, 60], "sex": ["M", "F"]}), "patient")
+    writer.write_dataframe(pd.DataFrame({"subject_id": [1, 1], "value": [4.0, 5.0]}), "labs")
+    writer.write_index(np.array([1, 2]))
+    dataset = MultimodalDataset(path, "subject_id", ["patient", "labs"])
 
-    assert len(dataset) == 1
-    item = dataset[0]
-    assert item["a"].tolist() == [1, 2, 3]
-    assert item["b"].tolist() == [4.0, 5.0, 6.0]
+    assert len(dataset) == 2
+    first = dataset[0]
+    assert first["patient"].tolist() == [[1.0, 50.0]]  # string column dropped
+    assert first["labs"].tolist() == [[1.0, 4.0], [1.0, 5.0]]
+    assert dataset[1]["labs"].numel() == 0  # subject without labs

@@ -1,7 +1,8 @@
 '''
 A dummy example of how to use the MIMICIVPatient cohort. 
-We aim to predict the 28-day mortality of patients admitted to the hospital for an acute coronary syndrome (ICD codes I21*, E785, R570) 
-based on their demographics and lab values (e.g. troponin levels, itemid 50912).
+We aim to predict the 28-day mortality of patients admitted to the hospital for an acute myocardial infarction
+(ICD codes I21*, I22*, 410*, see config/mimic_iv_infarction.yaml) based on their demographics.
+Lab values are extracted into the cohort (labs group) but not used by the model yet.
 The obtained cohort is then used to develop and assess a machine learning model for mortality prediction.
 '''
 import os
@@ -10,21 +11,20 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 
 
 from modules.physionet_cohort import MIMICPatientCohort,get_schema_from_config
-import icdlookup
 import pandas as pd
-    
+
 # --- Build cohort with filters ---
 from pathlib import Path
 
-tmp_dir='D:\\mimiciv-tmp\\'
-schema=get_schema_from_config(Path('config/mimic_iv_infarction.yaml'))
-cohort=MIMICPatientCohort(tmp_dir,'subject_id',schema=schema)
-cohort.build_and_save('data\\cohort.zarr')
+tmp_dir=str(Path('data') / 'mimiciv-tmp')
+zarr_path=str(Path('data') / 'cohort.zarr')
+if not os.path.exists(zarr_path):
+    schema=get_schema_from_config(Path('config/mimic_iv_infarction.yaml'))
+    cohort=MIMICPatientCohort(tmp_dir,'subject_id',schema=schema)
+    cohort.build_and_save(zarr_path)
 
 # --- Load cohort and prepare dataset for modeling ---
 from modules.zarr_tools import ZarrLoader
-zarr_path='data\\cohort.zarr'
-import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.compose import ColumnTransformer
@@ -34,20 +34,17 @@ from sklearn.metrics import roc_auc_score
 from sklearn.base import clone
 
 loader=ZarrLoader(zarr_path)
-# --- merge patient, admission, demographics as before ---
-df_patient = pd.DataFrame(loader.load_group("patient"))
 df_adm = pd.DataFrame(loader.load_group("admission"))
 df_demo = pd.DataFrame(loader.load_group("demographics"))
-df_diag=pd.DataFrame(loader.load_group("diagnoses"))
-df_social=pd.DataFrame(loader.load_group("social"))
+df_diag = pd.DataFrame(loader.load_group("diagnoses"))
+df_social = pd.DataFrame(loader.load_group("social"))
 
+# keep only admissions with a myocardial infarction diagnosis (diagnoses group is already ICD-filtered)
+mi_adm = df_diag[['subject_id', 'hadm_id']].drop_duplicates()
+df = df_adm.merge(mi_adm, on=['subject_id', 'hadm_id'], how='inner')
+df = df.merge(df_demo, on='subject_id', how='inner')          # inner: applies the age filter
+df = df.merge(df_social, on=['subject_id', 'hadm_id'], how='left')
 
-# merge patient + admission + demographics
-df = df_adm.merge(df_patient, on='subject_id', how='left')
-df = df.merge(df_demo, on='subject_id', how='left')
-df = df.merge(df_social, on=['hadm_id', 'subject_id'], how='left')
-# merge diagnoses
-df = df.merge(df_diag, on=['hadm_id', 'subject_id'], how='left')
 df["admittime"] = pd.to_datetime(df["admittime"])
 df["dod"] = pd.to_datetime(df["dod"], errors="coerce")
 df["mortality_28d"] = (
@@ -55,13 +52,14 @@ df["mortality_28d"] = (
     ((df["dod"] - df["admittime"]).dt.days <= 28)
 ).astype(int)
 
-df = df.sort_values(by=['subject_id', 'admittime'])
-df = df.groupby('subject_id', as_index=False).first()
+# index admission = first MI admission of each patient (whole row, no column mixing)
+df = df.sort_values(by=['subject_id', 'admittime']).drop_duplicates('subject_id', keep='first')
 # race simplified pour stratification et sous-groupes
 df["race_simple"] = df["race"].astype(str).apply(lambda x: "WHITE" if "WHITE" in x.upper() else "NON_WHITE")
 
 # --- Train/test split par patient, stratifié ---
-df['strata'] = df["gender"].astype(str) + "_" + df["race_simple"]
+# strata also include the (rare) outcome so that train and test keep the same event rate
+df['strata'] = df["gender"].astype(str) + "_" + df["race_simple"] + "_" + df["mortality_28d"].astype(str)
 patients = df[['subject_id', 'strata']].drop_duplicates()
 
 train_patients, test_patients = train_test_split(
@@ -88,7 +86,7 @@ categorical_features = ['gender', 'marital_status']
 numeric_features = ['anchor_age']
 
 preprocessor = ColumnTransformer([
-    ('cat', OneHotEncoder(drop='first'), categorical_features),
+    ('cat', OneHotEncoder(drop='first', handle_unknown='ignore'), categorical_features),
     ('num', 'passthrough', numeric_features)
 ])
 

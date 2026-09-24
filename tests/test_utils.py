@@ -20,3 +20,9 @@ def test_normalize_icd_code_icd9():
 
 def test_normalize_icd_code_icd10():
     assert normalize_icd_code("E123") == "E123"
+
+
+def test_find_icd_version_empty_code():
+    import pytest
+    with pytest.raises(ValueError):
+        find_icd_version("  ")

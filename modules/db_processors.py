@@ -13,10 +13,10 @@ class DatabaseProcessor:
         if cls is not DatabaseProcessor:
             PROCESSOR_REGISTRY[cls.__name__] = cls
 
-    def __init__(self, zarr_index:str,columns:list[str]=None, filters:list[BaseFilter]=[]):
+    def __init__(self, zarr_index:str,columns:list[str]=None, filters:list[BaseFilter]=None):
         self.zarr_index=zarr_index
         self.columns=columns
-        self.filters=filters
+        self.filters=list(filters) if filters else []
 
     def add_filters(self, filters:list[BaseFilter]):
         '''
@@ -34,7 +34,7 @@ class EHRDataFrameProcessor(DatabaseProcessor):
     '''
     Processor for EHR dataframes, to be used in the cohort building process.
     '''
-    def __init__(self, zarr_index:str, columns:list[str]=None, filters:list[BaseFilter]=[]):
+    def __init__(self, zarr_index:str, columns:list[str]=None, filters:list[BaseFilter]=None):
         super().__init__(zarr_index, columns, filters)
 
     def process(self, df:pd.DataFrame) ->tuple[pd.DataFrame, str]:
@@ -45,7 +45,7 @@ class EHRDataFrameProcessor(DatabaseProcessor):
         for filter in self.filters:
             df=filter.apply(df)
 
-        return df[self.columns], self.zarr_index
+        return (df if self.columns is None else df[self.columns]), self.zarr_index
     
 class PatientPreprocessor(DatabaseProcessor):
     pass

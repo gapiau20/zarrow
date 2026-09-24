@@ -1,3 +1,5 @@
+import codecs
+import gzip
 import yaml
 import shutil
 import pandas as pd
@@ -12,25 +14,43 @@ def get_columns_from_dataframe(df:pd.DataFrame):
     '''Build a schema dict from a dataframe containing the necessary information to build the cohort.'''
     return [col for col in df.columns]
 
-def read_tabular_file(filepath:str,**kwargs)->pd.DataFrame:
-    """Read a file using pandas based on its extension."""
-    ext = '.'+filepath.split('.')[-2].lower() if '.gz' in filepath else os.path.splitext(filepath)[-1].lower()
+def detect_encoding(filepath:str, encodings=("utf-8", "cp1252", "latin1"), block_size:int=1<<20)->str:
+    '''Return the first encoding able to decode the whole file (streamed, gzip aware).'''
+    opener = gzip.open if filepath.lower().endswith('.gz') else open
+    for enc in encodings:
+        decoder = codecs.getincrementaldecoder(enc)()
+        try:
+            with opener(filepath, 'rb') as f:
+                while block := f.read(block_size):
+                    decoder.decode(block)
+                decoder.decode(b'', final=True)
+            return enc
+        except UnicodeDecodeError:
+            continue
+    raise ValueError(f"Could not decode file {filepath} with tried encodings.")
 
-    if ext in [".csv",".csv.gz"]:
-        for enc in ["utf-8", "cp1252", "latin1"]:
-            try:
-                return pd.read_csv(filepath, encoding=enc, **kwargs)
-            except UnicodeDecodeError:
-                continue
-        raise ValueError(f"Could not decode file {filepath} with tried encodings.")
-    elif ext in [".xls", ".xlsx"]:
-        return pd.read_excel(filepath, **kwargs)
+def read_tabular_file(filepath:str,**kwargs):
+    """Read a file using pandas based on its extension.
+    With chunksize, always returns an iterable of DataFrames (like pd.read_csv)."""
+    filepath = str(filepath)
+    name = filepath.lower()
+    ext = os.path.splitext(name[:-3] if name.endswith('.gz') else name)[-1]
+
+    if ext == ".csv":
+        # pass encoding explicitly (e.g. from the YAML read_options) to skip the detection pass on large files
+        kwargs.setdefault("encoding", detect_encoding(filepath))
+        return pd.read_csv(filepath, **kwargs)
+
+    chunksize = kwargs.pop("chunksize", None)
+    if ext in [".xls", ".xlsx"]:
+        df = pd.read_excel(filepath, **kwargs)
     elif ext == ".parquet":
-        return pd.read_parquet(filepath, **kwargs)
+        df = pd.read_parquet(filepath, **kwargs)
     elif ext == ".json":
-        return pd.read_json(filepath, **kwargs)
+        df = pd.read_json(filepath, **kwargs)
     else:
         raise ValueError(f"Unsupported file format: {ext}")
+    return [df] if chunksize else df
 
 def get_schema_from_tabular_file(file_path)->dict:
     schema={}
@@ -75,7 +95,7 @@ def get_schema_from_config(config_path):
 
 
 class BaseCohort:
-    def __init__(self,tmp_dir:str,zarr_index_name:str,schema={},chunk_size:int=64):
+    def __init__(self,tmp_dir:str,zarr_index_name:str,schema={},chunk_size:int=100_000):
         '''
         Base class for building a cohort and saving it into a zarr dataset.
         tmp_dir: temporary directory to store intermediate files during cohort building
@@ -102,7 +122,7 @@ class BaseCohort:
             if group_key in ['name']:
                 continue
             #get the processor class from the schema
-            processor_cls_name=group_info.get('processor', None).get('name', None)
+            processor_cls_name=(group_info.get('processor') or {}).get('name')
             if processor_cls_name is None:
                 raise ValueError(f'Processor class not specified for group {group_key} in the schema.')
             processor_cls=processor_map.get(processor_cls_name, None)
@@ -122,6 +142,9 @@ class BaseCohort:
             
             #initialize the processor with the filters
             self.processors[group_key]=processor_cls(zarr_index=self.zarr_index, columns=group_info.get('columns'), filters=filters)
+
+        # groups whose filters define who belongs to the cohort (intersection of their subjects)
+        self.inclusion_groups=[k for k, v in self.schema.items() if k!='name' and v.get('inclusion', False)]
         return
             
     def remove_tmp_dir(self):
@@ -144,9 +167,13 @@ class BaseCohort:
             dataset_csv_file=self.schema[p]['file']
             self.download_file(dataset_csv_file)
             print(f'Filters to apply: {self.processors[p].filters}')
-            group=self.process_chunks(os.path.join(self.tmp_dir, dataset_csv_file), self.processors[p])
+            group=self.process_chunks(os.path.join(self.tmp_dir, dataset_csv_file), self.processors[p],
+                                      **self.schema[p].get('read_options', {}))
             cohort[p]=group
         # self.remove_tmp_dir() #commented out for now for debugging purposes, but should be uncommented in production to avoid filling up the disk with temporary files TODO
+        if self.inclusion_groups:
+            ids=set.intersection(*(set(cohort[g][self.zarr_index]) for g in self.inclusion_groups))
+            cohort={g: df[df[self.zarr_index].isin(ids)] for g, df in cohort.items()}
         return cohort
     
     def build_and_save(self,zarr_path:str):
@@ -159,28 +186,32 @@ class BaseCohort:
         writer = ZarrWriter(zarr_path, self.zarr_index)
         for k in cohort.keys():
             writer.write_dataframe(cohort[k], k)
-        writer.write_index(cohort['patient'][self.zarr_index].to_numpy())
+        ids = pd.concat([df[self.zarr_index] for df in cohort.values()]).drop_duplicates().sort_values()
+        writer.write_index(ids.to_numpy())
 
     def load(self, groups:list[str],zarr_path:str):
         if not os.path.exists(zarr_path):
-            print('Building cohort at: {zarr_path}')
+            print(f'Building cohort at: {zarr_path}')
             self.build_and_save(zarr_path)
-        print('Loading cohort from {zarr_path}')
+        print(f'Loading cohort from {zarr_path}')
         loader=ZarrLoader(zarr_path)
         return {g:loader.load_group(g,as_df=False) for g in groups}
 
 class TabularCohort(BaseCohort):
-    def process_chunks(self,file_path:str,processor:DatabaseProcessor)->pd.DataFrame:
+    def process_chunks(self,file_path:str,processor:DatabaseProcessor,**read_options)->pd.DataFrame:
         '''
         Generic function to process a csv file in chunks and apply the processor to each chunk.
         file_path: path to the csv file
         processor: processor to apply to each chunk (should be a subclass of DatabaseProcessor)
+        read_options: extra keyword arguments for the reader (e.g. encoding, usecols)
         '''
         cohort = []
-        for chunk in read_tabular_file(file_path,chunksize=self.chunk_size):
+        for chunk in read_tabular_file(file_path,chunksize=self.chunk_size,**read_options):
             processed_chunk, zarr_index = processor.process(chunk)
             if not processed_chunk.empty:
                 cohort.append(processed_chunk)
+        if not cohort:
+            return pd.DataFrame(columns=processor.columns)
         cohort=pd.concat(cohort,axis=0)
         return cohort
     

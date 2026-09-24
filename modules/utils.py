@@ -1,16 +1,14 @@
 '''Generic utility functions for the project.'''
 ####utils
-def find_icd_version(code:str)->str:
+def find_icd_version(code:str)->int:
     """
-    Find the ICD version (9 or 10) of a given code based on its format.
+    Guess the ICD version (9 or 10) of a code from its format.
+    Ambiguous for ICD-9 E/V codes: prefer the dataset's icd_version column when available.
     """
     code = str(code).strip().upper()
-    if code[0].isdigit():  # commence par un chiffre
-        return 9
-    elif code[0].isalpha():  # commence par une lettre
-        return 10
-    else:
-        return 10  # par défaut, on suppose ICD-10
+    if not code:
+        raise ValueError("Empty ICD code.")
+    return 9 if code[0].isdigit() else 10
 def normalize_icd_code(code):
     '''
     Normalize ICD codes to a standard format (e.g. remove dots, leading zeros, etc.)

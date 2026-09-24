@@ -1,19 +1,11 @@
 '''
 Utilities to build cohorts into a zarr database.
 '''
-from importlib.resources import files
-
 from wfdb.io import dl_files
 import os
-import shutil
-from pathlib import Path
-import pandas as pd
-
-from modules.db_processors import DatabaseProcessor
 
 # relative imports
-from .utils import normalize_icd_code
-from .cohort import TabularCohort, get_schema_from_config
+from .cohort import TabularCohort, get_schema_from_config  # get_schema_from_config re-exported for scripts
 
 
 class PhysioNetPatientCohort(TabularCohort):
@@ -25,12 +17,9 @@ class PhysioNetPatientCohort(TabularCohort):
     def download_file(self,file): 
         '''Download the necessary csv files to build the clinical cohort'''
         os.makedirs(self.tmp_dir,exist_ok=True)
-        #sanity check, if all files already there, skip downloading
-        full_paths = [file]
-        for p in full_paths:
-            print("Checking:", p, "->", os.path.exists(p))
-        if all(os.path.exists(p) for p in full_paths) or all(os.path.exists(os.path.join(self.tmp_dir,p)) for p in full_paths):
-            print("Files already present. Skipping download.")
+        #skip downloading if the file is already where process_chunks will read it
+        if os.path.exists(os.path.join(self.tmp_dir, file)):
+            print(f"{file} already present in {self.tmp_dir}. Skipping download.")
             return
         print("Downloading files from PhysioNet...")
         dl_files(self.db,self.tmp_dir,[file],keep_subdirs=True)
