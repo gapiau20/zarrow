@@ -54,6 +54,7 @@ def test_download_physionet_file_streams_to_disk(tmp_path, monkeypatch):
 
     assert calls[0][0] == "https://physionet.org/files/mimiciv/3.1/hosp/patients.csv.gz"
     assert calls[0][1]["stream"] is True
+    assert calls[0][1]["headers"]["User-Agent"].startswith("Wget/")  # required by PhysioNet for Basic auth
     assert (tmp_path / "hosp" / "patients.csv.gz").read_bytes() == b"a,b\n1,2\n"
     assert dst == str(tmp_path / "hosp" / "patients.csv.gz")
     assert not (tmp_path / "hosp" / "patients.csv.gz.part").exists()
@@ -67,7 +68,7 @@ def test_download_physionet_file_resumes_partial_download(tmp_path, monkeypatch)
     monkeypatch.setattr(download.requests, "get", fake_get([FakeResponse(206, b"1,2\n")], calls))
     download.download_physionet_file("mimiciv", "3.1", "hosp/patients.csv.gz", str(tmp_path))
 
-    assert calls[0][1]["headers"] == {"Range": "bytes=4-"}
+    assert calls[0][1]["headers"]["Range"] == "bytes=4-"
     assert (tmp_path / "hosp" / "patients.csv.gz").read_bytes() == b"a,b\n1,2\n"
 
 

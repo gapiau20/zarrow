@@ -41,7 +41,7 @@ from modules.download import download_physionet_file
 download_physionet_file("mimiciv", "3.1", "hosp/patients.csv.gz", "data/mimiciv-tmp")
 ```
 
-Un fichier déjà présent dans `tmp_dir` n'est pas retéléchargé. Vous pouvez donc aussi y déposer les tables vous-même.
+PhysioNet n'accepte l'authentification qu'avec un User-Agent de type `Wget/<version>` (sinon il répond 403, même avec des identifiants valides). [modules/download.py](modules/download.py) l'envoie automatiquement. Un fichier déjà présent dans `tmp_dir` n'est pas retéléchargé. Vous pouvez donc aussi y déposer les tables vous-même.
 
 ## Démarrage rapide
 
@@ -133,7 +133,6 @@ python -m pytest -q      # 44 tests
 
 ## Points ouverts
 
-- **Identifiants valides non testés** : l'authentification PhysioNet n'a été validée qu'en cas de refus (403). Le téléchargement public du démo, lui, fonctionne.
 - **À valider cliniquement** : les codes d'infarctus (`I21*`, `I22*`, `410*`) et les `itemid` des examens de laboratoire de `mimic_iv_infarction.yaml` (à vérifier dans `d_labitems`).
 - **Stores Zarr existants** : ceux écrits avant le correctif du filtrage (drapeau `inclusion`) contiennent tous les patients. Il faut les reconstruire.
 - **Fichiers temporaires** : `remove_tmp_dir()` n'est pas appelé automatiquement.

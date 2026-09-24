@@ -12,6 +12,10 @@ import os
 import requests
 
 PN_FILES_URL = "https://physionet.org/files/"
+# PhysioNet only honours HTTP Basic auth for command-line clients: with the default python-requests
+# User-Agent it answers 403 even with valid credentials. Its documented download client is wget,
+# and only a "Wget/<version>" prefix is accepted (checked on physionet.org/files/mimiciv/3.1).
+PN_USER_AGENT = "Wget/1.21.4 (compatible; zarrow)"
 
 def physionet_auth():
     '''Credentials from PHYSIONET_USERNAME/PHYSIONET_PASSWORD, else None (requests then falls back to ~/.netrc).'''
@@ -33,7 +37,9 @@ def download_physionet_file(db:str, version:str, file:str, dl_dir:str, chunk_siz
     os.makedirs(os.path.dirname(dst) or ".", exist_ok=True)
 
     done = os.path.getsize(part) if os.path.exists(part) else 0
-    headers = {"Range": f"bytes={done}-"} if done else {}
+    headers = {"User-Agent": PN_USER_AGENT}
+    if done:
+        headers["Range"] = f"bytes={done}-"
     with requests.get(url, auth=physionet_auth(), headers=headers, stream=True, timeout=timeout) as r:
         if r.status_code in (401, 403):
             raise PermissionError(
