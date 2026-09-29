@@ -1,9 +1,9 @@
 # Zarrow
 
-Construire des **cohortes cliniques** (MIMIC-IV, MIMIC-III…) à partir d'une config YAML, les stocker au format **[Zarr](https://zarr.dev)**, puis les utiliser avec pandas, scikit-learn ou PyTorch.
+Build **clinical cohorts** (MIMIC-IV, MIMIC-III…) from a YAML config, store them in **[Zarr](https://zarr.dev)** format, then use them with pandas, scikit-learn or PyTorch.
 
 ```
-config YAML ──► téléchargement PhysioNet ──► lecture par blocs + filtres ──► store Zarr ──► ML
+YAML config ──► PhysioNet download ──► chunked reading + filters ──► Zarr store ──► ML
 ```
 
 ## Installation
@@ -12,38 +12,38 @@ Python ≥ 3.10.
 
 ```bash
 python -m venv .venv
-.venv\Scripts\activate            # Linux/macOS : source .venv/bin/activate
-pip install -r requirements.txt   # + requirements-dev.txt pour pytest
+.venv\Scripts\activate            # Linux/macOS: source .venv/bin/activate
+pip install -r requirements.txt   # + requirements-dev.txt for pytest
 ```
 
-PyTorch s'installe en version CPU. Pour le GPU, décommentez la ligne `--extra-index-url` de `requirements.txt`.
+PyTorch installs the CPU build. For GPU, uncomment the `--extra-index-url` line in `requirements.txt`.
 
-### Identifiants PhysioNet (MIMIC-IV complet)
+### PhysioNet credentials (full MIMIC-IV)
 
-Les démos (`mimic-iv-demo`, `mimiciii-demo`) sont publiques. Pour MIMIC-IV complet, il faut un compte PhysioNet **credentialed** qui a signé l'accord d'utilisation (DUA) du projet. Fournissez vos identifiants de l'une des deux façons suivantes (jamais dans le dépôt) :
+The demos (`mimic-iv-demo`, `mimiciii-demo`) are public. For full MIMIC-IV, you need a **credentialed** PhysioNet account that has signed the project's data use agreement (DUA). Provide your credentials one of two ways (never in the repo):
 
 ```powershell
-$env:PHYSIONET_USERNAME = "user"; $env:PHYSIONET_PASSWORD = "mot_de_passe"
+$env:PHYSIONET_USERNAME = "user"; $env:PHYSIONET_PASSWORD = "password"
 ```
 
-ou via un fichier `~/.netrc` (sous Windows : `%USERPROFILE%\_netrc`) :
+or via a `~/.netrc` file (on Windows: `%USERPROFILE%\_netrc`):
 
 ```
 machine physionet.org
 login user
-password mot_de_passe
+password password
 ```
 
-Testez l'accès sur un petit fichier avant de lancer une grosse cohorte :
+Test access on a small file before launching a large cohort build:
 
 ```python
 from modules.download import download_physionet_file
 download_physionet_file("mimiciv", "3.1", "hosp/patients.csv.gz", "data/mimiciv-tmp")
 ```
 
-PhysioNet n'accepte l'authentification qu'avec un User-Agent de type `Wget/<version>` (sinon il répond 403, même avec des identifiants valides). [modules/download.py](modules/download.py) l'envoie automatiquement. Un fichier déjà présent dans `tmp_dir` n'est pas retéléchargé. Vous pouvez donc aussi y déposer les tables vous-même.
+PhysioNet only accepts authentication with a `Wget/<version>`-style User-Agent (otherwise it answers 403, even with valid credentials). [modules/download.py](modules/download.py) sends it automatically. A file already present in `tmp_dir` is not re-downloaded, so you can also drop the tables there yourself.
 
-## Démarrage rapide
+## Quickstart
 
 ```python
 from modules.physionet_cohort import MIMICPatientCohort
@@ -52,29 +52,29 @@ from modules.zarr_tools import ZarrLoader
 
 schema = get_schema_from_config("config/mimiciv_demo.yaml")
 cohort = MIMICPatientCohort("data/tmp", "subject_id", schema)
-cohort.build_and_save("data/demo.zarr")                  # télécharge, filtre, écrit
+cohort.build_and_save("data/demo.zarr")                  # downloads, filters, writes
 
 df = ZarrLoader("data/demo.zarr").load_group("admission", as_df=True)
 ```
 
-Exemple complet (mortalité à 28 jours après un infarctus, régression logistique et analyse par sous-groupes) :
+Full example (28-day mortality after a myocardial infarction, using demographics and laboratory values, logistic regression and subgroup analysis):
 
 ```bash
-python scripts/mortality28d.py     # config : config/mimic_iv_infarction.yaml
+python scripts/mortality28d.py     # config: config/mimic_iv_infarction.yaml
 ```
 
-Le script ne reconstruit la cohorte que si `data/cohort.zarr` n'existe pas. Supprimez ce dossier pour la reconstruire.
+The script only rebuilds the cohort if `data/cohort.zarr` does not exist. Delete that folder to rebuild it.
 
-## Définir une cohorte
+## Defining a cohort
 
 ```yaml
 dataset:
-  name: mimiciv                 # projet PhysioNet
-  version: '3.1'                # version du projet
-  diagnoses:                    # un « groupe » = une table = un groupe Zarr
+  name: mimiciv                 # PhysioNet project
+  version: '3.1'                # project version
+  diagnoses:                    # a "group" = a table = a Zarr group
     file: hosp/diagnoses_icd.csv.gz
-    inclusion: true             # ses filtres définissent qui est dans la cohorte
-    read_options: {encoding: utf-8}   # optionnel, kwargs pandas
+    inclusion: true             # its filters define who is in the cohort
+    read_options: {encoding: utf-8}   # optional, pandas kwargs
     columns: [subject_id, hadm_id, icd_code]
     processor: {name: EHRDataFrameProcessor}
     filters:
@@ -82,48 +82,48 @@ dataset:
         parameters: {diag_column: icd_code, icd_codes: ['I21*', '410*']}
 ```
 
-Règles à connaître :
-- **Chaque groupe contient la colonne d'index** (ex. `subject_id`).
-- **Les filtres s'appliquent avant la sélection de `columns`** : ils peuvent donc porter sur une colonne non conservée.
-- **`inclusion: true`** restreint *tous* les groupes à l'intersection des patients des groupes d'inclusion. Sans ce drapeau, un filtre ne sélectionne que les lignes de son propre groupe (par exemple, quels examens de laboratoire garder).
+Rules to know:
+- **Each group contains the index column** (e.g. `subject_id`).
+- **Filters apply before the `columns` selection**: they can therefore operate on a column that isn't kept.
+- **`inclusion: true`** restricts *all* groups to the intersection of patients from the inclusion groups. Without this flag, a filter only selects rows within its own group (for example, which lab tests to keep).
 
-| Filtre | Paramètres |
+| Filter | Parameters |
 |---|---|
-| `AgeFilter` | `age_column`, `age_min`, `age_max` (bornes incluses) |
+| `AgeFilter` | `age_column`, `age_min`, `age_max` (inclusive bounds) |
 | `SexFilter` | `sex_column`, `sex` |
-| `ICDFilter` | `diag_column`, `icd_codes` (le suffixe `*` signifie « préfixe ») |
+| `ICDFilter` | `diag_column`, `icd_codes` (the `*` suffix means "prefix") |
 | `PatientFilter` | `patient_col`, `subject_ids` |
-| `LabEventFilter` / `ProcedureFilter` / `MedicationFilter` / `CharteventFilter` | `<x>_column`, `<x>s` (liste de valeurs) |
+| `LabEventFilter` / `ProcedureFilter` / `MedicationFilter` / `CharteventFilter` | `<x>_column`, `<x>s` (list of values) |
 
-**Ajouter un filtre ou un processeur** : il suffit d'hériter de `BaseFilter` (méthode `apply(df)`) ou de `DatabaseProcessor` (méthode `process(df)`). La classe est enregistrée automatiquement et utilisable par son nom dans le YAML.
+**Adding a filter or a processor**: just subclass `BaseFilter` (`apply(df)` method) or `DatabaseProcessor` (`process(df)` method). The class is registered automatically and usable by name in the YAML.
 
-## Store Zarr produit
+## Zarr store produced
 
 ```
 cohort.zarr/
-├── subject_id          # index : identifiants uniques triés
-├── admission/          # un groupe par groupe de la config
-│   ├── subject_id      # une colonne = un array
-│   └── admittime       # texte en UTF-8 ; valeur manquante = ''
+├── subject_id          # index: sorted unique identifiers
+├── admission/          # one group per group in the config
+│   ├── subject_id      # one column = one array
+│   └── admittime       # UTF-8 text; missing value = ''
 └── labs/ ...
 ```
 
-Les tables sont « longues » (une ligne par enregistrement, pas par patient) : faites les jointures sur `subject_id` / `hadm_id`. Pour PyTorch, `MultimodalDataset(zarr_path, "subject_id", groups)` renvoie un item par patient, avec les colonnes numériques triées par nom (voir `dataset.columns`). Le nombre de lignes varie d'un patient à l'autre, donc il faut un `collate_fn` avec padding.
+Tables are "long" (one row per record, not per patient): join on `subject_id` / `hadm_id`. For PyTorch, `MultimodalDataset(zarr_path, "subject_id", groups)` returns one item per patient, with numeric columns sorted by name (see `dataset.columns`). The number of rows varies from patient to patient, so a padding `collate_fn` is needed.
 
-## Organisation du code
+## Code organization
 
-| Fichier | Rôle |
+| File | Role |
 |---|---|
-| [modules/cohort.py](modules/cohort.py) | `BaseCohort` / `TabularCohort` : pipeline, lecture tabulaire avec détection d'encodage |
-| [modules/db_filters.py](modules/db_filters.py), [modules/db_processors.py](modules/db_processors.py) | Filtres et processeurs, registres automatiques |
-| [modules/physionet_cohort.py](modules/physionet_cohort.py) | Cohortes PhysioNet (`MIMICPatientCohort`) |
-| [modules/download.py](modules/download.py) | Téléchargement PhysioNet authentifié, en streaming, avec reprise |
+| [modules/cohort.py](modules/cohort.py) | `BaseCohort` / `TabularCohort`: pipeline, tabular reading with encoding detection |
+| [modules/db_filters.py](modules/db_filters.py), [modules/db_processors.py](modules/db_processors.py) | Filters and processors, automatic registries |
+| [modules/physionet_cohort.py](modules/physionet_cohort.py) | PhysioNet cohorts (`MIMICPatientCohort`) |
+| [modules/download.py](modules/download.py) | Authenticated, streaming PhysioNet download with resume |
 | [modules/zarr_tools.py](modules/zarr_tools.py) | `ZarrWriter` / `ZarrLoader` |
 | [modules/torch_loader.py](modules/torch_loader.py) | `MultimodalDataset` |
-| [modules/utils.py](modules/utils.py) | Utilitaires pour les codes CIM (ICD) |
-| [modules/features.py](modules/features.py), [modules/multimodal.py](modules/multimodal.py), [main.py](main.py) | Squelettes pour les futures modalités |
-| [config/](config/) | Cohortes : `mimiciv_demo`, `mimiciii_demo`, `mimic_iv_infarction` |
-| `data/` | Données d'entrée (ignorées par git) |
+| [modules/utils.py](modules/utils.py) | Utilities for ICD codes |
+| [modules/features.py](modules/features.py), [modules/multimodal.py](modules/multimodal.py), [main.py](main.py) | Skeletons for future modalities |
+| [config/](config/) | Cohorts: `mimiciv_demo`, `mimiciii_demo`, `mimic_iv_infarction` |
+| `data/` | Input data (git-ignored) |
 
 ## Tests
 
@@ -131,20 +131,20 @@ Les tables sont « longues » (une ligne par enregistrement, pas par patient) : 
 python -m pytest -q      # 44 tests
 ```
 
-## Points ouverts
+## Open points
 
-- **À valider cliniquement** : les codes d'infarctus (`I21*`, `I22*`, `410*`) et les `itemid` des examens de laboratoire de `mimic_iv_infarction.yaml` (à vérifier dans `d_labitems`).
-- **Stores Zarr existants** : ceux écrits avant le correctif du filtrage (drapeau `inclusion`) contiennent tous les patients. Il faut les reconstruire.
-- **Fichiers temporaires** : `remove_tmp_dir()` n'est pas appelé automatiquement.
-- **Dates** : elles sont stockées comme texte et doivent être converties à la lecture.
-- **Index** : `ZarrLoader.load_index()` lit le premier array trouvé à la racine.
+- **To validate clinically**: the infarction codes (`I21*`, `I22*`, `410*`) and the laboratory `itemid`s of `mimic_iv_infarction.yaml` (check against `d_labitems`). High-Sensitivity CRP (itemid `51652`) was removed from that config: it has only ~40 measurements in the whole MIMIC-IV AMI cohort, i.e. it is essentially never ordered on the index admission, so it added no signal and mostly produced missing-value features (see `AUDIT_zarrow.md`).
+- **Existing Zarr stores**: those written before the filtering fix (`inclusion` flag) contain all patients. They need to be rebuilt.
+- **Temporary files**: `remove_tmp_dir()` is not called automatically.
+- **Dates**: they are stored as text and must be converted back on read.
+- **Index**: `ZarrLoader.load_index()` reads the first array found at the root.
 
-## Branches et feuille de route
+## Branches and roadmap
 
-`master` = code fonctionnel, `dev` = développement (voir [contributing.md](contributing.md)). Prochaines étapes : séries temporelles de laboratoire, ECG, waveforms, MIMIC-III tabulaire, puis IMPROVE, registres d'infarctus et VitalDB.
+`master` = working code, `dev` = development (see [contributing.md](contributing.md)). Next steps: laboratory time series, ECG, waveforms, tabular MIMIC-III, then IMPROVE, infarction registries and VitalDB.
 
-## Référence
+## Reference
 
 Johnson, A.E.W. et al. *MIMIC-IV, a freely accessible electronic health record dataset.* Sci Data 10, 1 (2023). https://doi.org/10.1038/s41597-022-01899-x
 
-Licence : voir [LICENSE](LICENSE).
+License: see [LICENSE](LICENSE).

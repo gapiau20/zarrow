@@ -78,10 +78,17 @@ dataset:
       - itemid
       - charttime
       - value
+      - valuenum   # MIMIC-IV's pre-parsed numeric field; 'value' is free text (sometimes
+                   # masked as "___" by de-identification) and must not be used for
+                   # numeric computation, see scripts/mortality28d.py
     filters:
       - name: LabEventFilter
         parameters:
           lab_event_column: itemid
-          lab_events: [51652,50963,50811,50907,50931,50910]
+          # NTproBNP (50963), Hemoglobin (50811), Cholesterol (50907), Glucose (50931),
+          # Creatine Kinase (50910). High-Sensitivity CRP (51652) was dropped: only ~40
+          # measurements in the whole cohort, i.e. essentially never ordered on the
+          # index admission (see AUDIT_zarrow.md).
+          lab_events: [50963,50811,50907,50931,50910]
     processor:
       name: EHRDataFrameProcessor

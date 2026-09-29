@@ -209,6 +209,8 @@ __marimo__/
 #downloaded data
 data/*
 # demo trash python script
-dev.py 
+dev.py
 #copy paste all py  filles of the project for prompting
 dump.py
+# generated repo/paper audit reports
+AUDIT*.md
