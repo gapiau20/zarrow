@@ -15,8 +15,7 @@
 ## VitalDB
 
 # Known issues / before you touch the code
-
-From a static audit of the repo (see `AUDIT_zarrow.md` at the repo root — git-ignored, regenerate it with `/paper-repo-audit` if you need the full report). Check these before relying on results for a paper/report, and any of them makes a good first contribution:
+Check these before relying on results for a paper/report, and any of them makes a good first contribution:
 
 - 🟠 `scripts/mortality28d.py`: the `mortality_28d` label doesn't guard against `dod < admittime` (a recorded death date earlier than the admission). Harmless on the current MIMIC-IV run, but add `& ((df["dod"] - df["admittime"]).dt.days >= 0)` before reusing this label logic on another, less clean dataset.
 - 🟡 `modules/db_processors.py::EHRDataFrameProcessor.process` / `modules/cohort.py::read_tabular_file`: raw CSVs are always parsed with every column (no `usecols`) and only sliced down to the schema's `columns` afterwards. Wastes memory/time on wide tables (`labevents.csv.gz`) and is the direct cause of `DtypeWarning`s on columns that aren't even requested (e.g. `order_provider_id`) when building a cohort.
