@@ -1,6 +1,6 @@
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="pictures/zarrow-logo-horizontal-dark.svg">
+    <source media="(prefers-color-scheme: dark)" srcset="pictures/zarrow-logo-horizontal.svg">
     <img src="pictures/zarrow-logo-horizontal.svg" alt="Zarrow" width="420">
   </picture>
 </p>
