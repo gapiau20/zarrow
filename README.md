@@ -1,3 +1,10 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="pictures/zarrow-logo-horizontal-dark.svg">
+    <img src="pictures/zarrow-logo-horizontal.svg" alt="Zarrow" width="420">
+  </picture>
+</p>
+
 # Zarrow
 
 Build **clinical cohorts** (MIMIC-IV, MIMIC-III…) from a YAML config, store them in **[Zarr](https://zarr.dev)** format, then use them with pandas, scikit-learn or PyTorch.
