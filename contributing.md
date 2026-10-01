@@ -6,7 +6,9 @@
 - [x] MIMIC-IV cohort creation
 - [ ] Add lab values time series
 - [x] MIMIC-IV cohort 28-day MI mortality with a toy example (now uses demographics + lab values, see `scripts/mortality28d.py`)
-- [ ] Add ECG modality
+- [x] Add ECG modality (MIMIC-IV-ECG, `modules/multimodal.py`)
+- [ ] Add chest X-ray modality (MIMIC-CXR-JPG)
+- [ ] Add CT / DICOM modality
 - [ ] Add Waveforms modality
 - [ ] Extend to MIMIC-III (Tabular data only)
 

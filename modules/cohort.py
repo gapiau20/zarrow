@@ -9,6 +9,7 @@ from modules.zarr_tools import ZarrWriter,ZarrLoader
 
 from modules.db_filters import register_filters
 from modules.db_processors import DatabaseProcessor, register_database_processors
+from modules.multimodal import add_modality
 
 def get_columns_from_dataframe(df:pd.DataFrame):
     '''Build a schema dict from a dataframe containing the necessary information to build the cohort.'''
@@ -95,7 +96,7 @@ def get_schema_from_config(config_path):
 
 
 class BaseCohort:
-    def __init__(self,tmp_dir:str,zarr_index_name:str,schema={},chunk_size:int=100_000):
+    def __init__(self,tmp_dir:str,zarr_index_name:str,schema={},chunk_size:int=100_000,modalities:dict=None):
         '''
         Base class for building a cohort and saving it into a zarr dataset.
         tmp_dir: temporary directory to store intermediate files during cohort building
@@ -104,12 +105,15 @@ class BaseCohort:
         should be a dict with keys as group where the filters apply and values as a list of filter objects 
         (e.g. PatientFilter, AgeFilter, etc.)
         e.g. filters={'patient': [AgeFilter(age_min=50), 'sex': SexFilter(sex='M')]}.
+        modalities: optional {name: config} of non-tabular modalities added after the tables
+        (see modules/multimodal.py::add_modality and get_modalities_from_config).
         '''
         self.tmp_dir=tmp_dir
         self.schema=schema
         self.db=self.schema['name']
         self.zarr_index=zarr_index_name
         self.chunk_size=chunk_size
+        self.modalities=modalities or {}
 
         #create processors for each group in the schema and add the filters to the procesors
         self.processors={}
@@ -188,6 +192,8 @@ class BaseCohort:
             writer.write_dataframe(cohort[k], k)
         ids = pd.concat([df[self.zarr_index] for df in cohort.values()]).drop_duplicates().sort_values()
         writer.write_index(ids.to_numpy())
+        for name, config in self.modalities.items():
+            add_modality(zarr_path, self.zarr_index, name, config)
 
     def load(self, groups:list[str],zarr_path:str):
         if not os.path.exists(zarr_path):

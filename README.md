@@ -72,6 +72,12 @@ python scripts/mortality28d.py     # config: config/mimic_iv_infarction.yaml
 
 The script only rebuilds the cohort if `data/cohort.zarr` does not exist. Delete that folder to rebuild it.
 
+Same model with the presenting ECG added (heart rate, RR variability, per-lead QRS amplitude and ST deviation of the median beat), compared with and without ECG on the same folds:
+
+```bash
+python scripts/mortality28d-ecg.py   # adds the ECGs to data/cohort.zarr if missing: ~26k ECGs, ~3 GB (open access)
+```
+
 ## Defining a cohort
 
 ```yaml
@@ -112,10 +118,41 @@ cohort.zarr/
 ├── admission/          # one group per group in the config
 │   ├── subject_id      # one column = one array
 │   └── admittime       # UTF-8 text; missing value = ''
-└── labs/ ...
+├── labs/ ...
+└── ecg/                # one group per modality, along a record axis
+    ├── data            # (n_records, 5000, 12) int16, one record per chunk, 256 per shard
+    ├── record_subject, record_id, record_time, record_hadm, record_offset_h, valid
+    └── patient_ptr     # (n_patients + 1,): records of patient i are [ptr[i], ptr[i+1])
 ```
 
 Tables are "long" (one row per record, not per patient): join on `subject_id` / `hadm_id`. For PyTorch, `MultimodalDataset(zarr_path, "subject_id", groups)` returns one item per patient, with numeric columns sorted by name (see `dataset.columns`). The number of rows varies from patient to patient, so a padding `collate_fn` is needed.
+
+## Adding modalities (ECG)
+
+Non-tabular modalities are declared in a top-level `modalities:` section of the config, next to `dataset:` (see [config/mimiciv_demo.yaml](config/mimiciv_demo.yaml)):
+
+```yaml
+modalities:
+  ecg:
+    adapter: MIMICECGAdapter
+    parameters: {source_dir: data/mimic-iv-ecg, project: mimic-iv-ecg, version: '1.0'}
+    window: {anchor_group: admission, anchor_time: admittime, hours: [-12, 24], restrict_to: diagnoses}
+    select: all                   # all | first | last record per patient
+```
+
+```python
+from modules.multimodal import get_modalities_from_config, add_modality
+cohort = MIMICPatientCohort("data/tmp", "subject_id", schema, modalities=get_modalities_from_config(cfg))
+# or add it to an existing store without rebuilding the tables:
+add_modality("data/cohort.zarr", "subject_id", "ecg", get_modalities_from_config(cfg)["ecg"])
+```
+
+- Only the records of cohort patients within `hours` of an anchor time (here the admission time) are kept; a record in several windows is matched to the closest anchor. `restrict_to` keeps only the anchors whose `(subject_id, hadm_id)` appear in another group, e.g. the ICD-filtered admissions.
+- MIMIC-IV-ECG is open access. Only the selected records are downloaded, file by file (about 3 files/s): for a large cohort, download the project archive into `source_dir` first, files already there are not downloaded again.
+- ECGs are stored losslessly as int16 at the native gain (200 units/mV) and decoded to mV on read. Lead order is the one of the files: `I, II, III, aVR, aVF, aVL, V1…V6` (see the `leads` attribute). Missing samples come back as NaN: handle them before a model.
+- **Adding a modality**: subclass `ModalityAdapter` (`manifest()`, `load(record)`, optionally `fetch()` and `attrs()`), it is registered automatically and usable by name in the YAML.
+
+For PyTorch, `MultimodalDataset(zarr_path, "subject_id", groups, modalities=["ecg"])` adds each patient's ECGs (`(k, 5000, 12)`) and their offsets from the anchor (`ecg_offset_h`), reading only that patient's records from disk. `RecordDataset(zarr_path, "ecg")` gives one item per ECG.
 
 ## Code organization
 
@@ -126,16 +163,17 @@ Tables are "long" (one row per record, not per patient): join on `subject_id` / 
 | [modules/physionet_cohort.py](modules/physionet_cohort.py) | PhysioNet cohorts (`MIMICPatientCohort`) |
 | [modules/download.py](modules/download.py) | Authenticated, streaming PhysioNet download with resume |
 | [modules/zarr_tools.py](modules/zarr_tools.py) | `ZarrWriter` / `ZarrLoader` |
-| [modules/torch_loader.py](modules/torch_loader.py) | `MultimodalDataset` |
+| [modules/multimodal.py](modules/multimodal.py) | Modalities: `ModalityAdapter`, `MIMICECGAdapter`, time windows, `add_modality` |
+| [modules/torch_loader.py](modules/torch_loader.py) | `MultimodalDataset`, `RecordDataset` |
 | [modules/utils.py](modules/utils.py) | Utilities for ICD codes |
-| [modules/features.py](modules/features.py), [modules/multimodal.py](modules/multimodal.py), [main.py](main.py) | Skeletons for future modalities |
+| [modules/features.py](modules/features.py), [main.py](main.py) | Skeletons |
 | [config/](config/) | Cohorts: `mimiciv_demo`, `mimiciii_demo`, `mimic_iv_infarction` |
 | `data/` | Input data (git-ignored) |
 
 ## Tests
 
 ```bash
-python -m pytest -q      # 44 tests
+python -m pytest -q      # 51 tests
 ```
 
 ## Open points
@@ -148,7 +186,7 @@ python -m pytest -q      # 44 tests
 
 ## Branches and roadmap
 
-`master` = working code, `dev` = development (see [contributing.md](contributing.md)). Next steps: laboratory time series, ECG, waveforms, tabular MIMIC-III, then IMPROVE, infarction registries and VitalDB.
+`master` = working code, `dev` = development (see [contributing.md](contributing.md)). Next steps: laboratory time series, chest X-rays, CT (DICOM), waveforms, tabular MIMIC-III, then IMPROVE, infarction registries and VitalDB.
 
 ## Reference
 

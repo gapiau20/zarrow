@@ -83,3 +83,19 @@ dataset:
           lab_events: [50868, 50971]
     processor:
       name: EHRDataFrameProcessor
+
+# Non-tabular modalities, added after the tables (see modules/multimodal.py).
+# Records are kept if they fall within `hours` of an anchor time read from a group of the cohort.
+modalities:
+  ecg:
+    adapter: MIMICECGAdapter
+    parameters:
+      source_dir: data/mimic-iv-ecg-demo   # files already there are not downloaded again
+      project: mimic-iv-ecg-demo           # full data: mimic-iv-ecg, version '1.0' (open access)
+      version: '0.1'
+    window:
+      anchor_group: admission
+      anchor_time: admittime
+      hours: [-12, 24]                     # ECGs are often recorded in the ED, before admittime
+      # restrict_to: diagnoses             # anchor only on the admissions kept in this group
+    select: all                            # all | first | last record per patient
