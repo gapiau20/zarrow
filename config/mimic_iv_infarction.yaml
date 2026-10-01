@@ -92,3 +92,19 @@ dataset:
           lab_events: [50963,50811,50907,50931,50910]
     processor:
       name: EHRDataFrameProcessor
+
+# 12-lead ECGs of MIMIC-IV-ECG (open access), see modules/multimodal.py and scripts/mortality28d-ecg.py.
+modalities:
+  ecg:
+    adapter: MIMICECGAdapter
+    parameters:
+      source_dir: data/mimic-iv-ecg        # put the project archive here to skip the file-by-file download
+      project: mimic-iv-ecg
+      version: '1.0'
+      workers: 16
+    window:
+      anchor_group: admission
+      anchor_time: admittime
+      hours: [-12, 24]                     # presenting ECG: often recorded in the ED, before admittime
+      restrict_to: diagnoses               # anchor on the MI admissions only
+    select: all

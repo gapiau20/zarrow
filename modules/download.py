@@ -22,20 +22,8 @@ def physionet_auth():
     user, pwd = os.environ.get("PHYSIONET_USERNAME"), os.environ.get("PHYSIONET_PASSWORD")
     return (user, pwd) if user and pwd else None
 
-def download_physionet_file(db:str, version:str, file:str, dl_dir:str, chunk_size:int=1<<20, timeout:int=60)->str:
-    '''
-    Stream one file of a (possibly credentialed) PhysioNet project into dl_dir/file.
-    db: project slug (e.g. mimiciv, mimic-iv-demo)
-    version: project version (e.g. 3.1)
-    file: path relative to the project root (e.g. hosp/patients.csv.gz)
-    The file is written to dl_dir/file.part and renamed once complete,
-    so an interrupted download is resumed (HTTP Range) and never mistaken for a complete file.
-    '''
-    url = f"{PN_FILES_URL}{db}/{version}/{file}"
-    dst = os.path.normpath(os.path.join(dl_dir, file))
-    part = dst + ".part"
-    os.makedirs(os.path.dirname(dst) or ".", exist_ok=True)
-
+def _download_part(url:str, part:str, chunk_size:int, timeout:int):
+    '''Download url into part, appending to what it already holds when the server honours HTTP Range.'''
     done = os.path.getsize(part) if os.path.exists(part) else 0
     headers = {"User-Agent": PN_USER_AGENT}
     if done:
@@ -51,5 +39,30 @@ def download_physionet_file(db:str, version:str, file:str, dl_dir:str, chunk_siz
             with open(part, "ab" if r.status_code == 206 else "wb") as f:
                 for block in r.iter_content(chunk_size):
                     f.write(block)
+
+def download_physionet_file(db:str, version:str, file:str, dl_dir:str, chunk_size:int=1<<20, timeout:int=60,
+                            retries:int=5)->str:
+    '''
+    Stream one file of a (possibly credentialed) PhysioNet project into dl_dir/file.
+    db: project slug (e.g. mimiciv, mimic-iv-demo)
+    version: project version (e.g. 3.1)
+    file: path relative to the project root (e.g. hosp/patients.csv.gz)
+    The file is written to dl_dir/file.part and renamed once complete,
+    so an interrupted download is resumed (HTTP Range) and never mistaken for a complete file.
+    A dropped connection or timeout is retried up to `retries` times, resuming from the .part file.
+    '''
+    url = f"{PN_FILES_URL}{db}/{version}/{file}"
+    dst = os.path.normpath(os.path.join(dl_dir, file))
+    part = dst + ".part"
+    os.makedirs(os.path.dirname(dst) or ".", exist_ok=True)
+
+    for attempt in range(retries + 1):
+        try:
+            _download_part(url, part, chunk_size, timeout)
+            break
+        except (requests.ConnectionError, requests.Timeout, requests.exceptions.ChunkedEncodingError) as err:
+            if attempt == retries:
+                raise
+            print(f"Download of {file} interrupted ({type(err).__name__}), resuming ({attempt + 1}/{retries})...")
     os.replace(part, dst)
     return dst

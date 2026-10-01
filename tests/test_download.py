@@ -77,3 +77,28 @@ def test_download_physionet_file_refused(tmp_path, monkeypatch):
     with pytest.raises(PermissionError):
         download.download_physionet_file("mimiciv", "3.1", "hosp/patients.csv.gz", str(tmp_path))
     assert not (tmp_path / "hosp" / "patients.csv.gz").exists()
+
+
+class BrokenResponse(FakeResponse):
+    '''Sends body, then drops the connection like PhysioNet sometimes does mid-file.'''
+    def iter_content(self, chunk_size):
+        yield self.body
+        raise download.requests.exceptions.ChunkedEncodingError("Connection broken: IncompleteRead")
+
+
+def test_download_physionet_file_retries_and_resumes(tmp_path, monkeypatch):
+    calls = []
+    responses = [BrokenResponse(200, b"a,b\n"), FakeResponse(206, b"1,2\n")]
+    monkeypatch.setattr(download.requests, "get", fake_get(responses, calls))
+    download.download_physionet_file("mimiciv", "3.1", "hosp/patients.csv.gz", str(tmp_path))
+
+    assert calls[1][1]["headers"]["Range"] == "bytes=4-"           # second attempt resumes the .part
+    assert (tmp_path / "hosp" / "patients.csv.gz").read_bytes() == b"a,b\n1,2\n"
+
+
+def test_download_physionet_file_gives_up_after_retries(tmp_path, monkeypatch):
+    responses = [BrokenResponse(200, b"x") for _ in range(3)]
+    monkeypatch.setattr(download.requests, "get", fake_get(responses, []))
+    with pytest.raises(download.requests.exceptions.ChunkedEncodingError):
+        download.download_physionet_file("mimiciv", "3.1", "hosp/patients.csv.gz", str(tmp_path), retries=2)
+    assert (tmp_path / "hosp" / "patients.csv.gz.part").exists()      # kept for a later resume
