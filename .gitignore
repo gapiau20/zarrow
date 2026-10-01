@@ -214,3 +214,6 @@ dev.py
 dump.py
 # generated repo/paper audit reports
 AUDIT*.md
+
+#generated figures produced when running scripts
+figures/*

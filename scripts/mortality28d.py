@@ -23,6 +23,11 @@ if not os.path.exists(zarr_path):
 
 # --- Load cohort and prepare dataset for modeling ---
 from modules.zarr_tools import ZarrLoader
+import matplotlib
+matplotlib.use("Agg")   # file output only, no GUI needed
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.metrics import roc_curve
 from sklearn.model_selection import train_test_split, StratifiedKFold, cross_validate
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from sklearn.impute import SimpleImputer
@@ -177,6 +182,32 @@ for sex, race in groups:
 df_results = pd.DataFrame(results).round(4)
 print("\nAUC by subgroup (model retrained on the subgroup vs. global model evaluated on the subgroup):")
 print(df_results.to_string(index=False))
+
+# --- Figure for the poster: ROC curve (held-out set) + subgroup AUC ---
+sns.set_theme(style="whitegrid", context="paper", rc={"svg.fonttype": "none", "grid.color": "#e6e6e6"})
+TEAL, ORANGE = "#1f6f78", "#d9822b"
+fig, (ax_roc, ax_sub) = plt.subplots(1, 2, figsize=(7, 3), gridspec_kw={"width_ratios": [1, 1.3]})
+
+fpr, tpr, _ = roc_curve(y_test, y_pred_global)
+ax_roc.plot(fpr, tpr, color=TEAL, lw=2, label=f"AUC = {auc_global:.2f}")
+ax_roc.plot([0, 1], [0, 1], color="grey", lw=1, ls="--", label="Chance")
+ax_roc.set(xlabel="False positive rate", ylabel="True positive rate", title="ROC, held-out test set", aspect="equal")
+ax_roc.legend(loc="lower right", bbox_to_anchor=(0.98, 0.04), frameon=False, fontsize=7, handlelength=1.5)
+
+# one row per subgroup: global model vs model retrained on the subgroup (same test patients)
+y_pos = range(len(df_results))
+ax_sub.hlines(y_pos, df_results["auc_global"], df_results["auc_subgroup"], color="#bbbbbb", lw=2, zorder=1)
+ax_sub.scatter(df_results["auc_global"], y_pos, color=TEAL, s=45, zorder=2, label="Global model")
+ax_sub.scatter(df_results["auc_subgroup"], y_pos, color=ORANGE, s=45, zorder=2, label="Retrained on subgroup")
+ax_sub.set_yticks(list(y_pos), [f"{s} / {r.replace('_', '-').title()}\n(n={n})" for s, r, n in
+                                 zip(df_results["sex"], df_results["race"], df_results["n_test"])])
+ax_sub.invert_yaxis()
+ax_sub.set(xlabel="AUC", title="28-day mortality AUC by subgroup")
+ax_sub.legend(loc="lower center", bbox_to_anchor=(0.45, -0.5), ncol=2, frameon=False, fontsize=7)
+sns.despine(fig)
+fig.tight_layout()
+os.makedirs("figures", exist_ok=True)
+fig.savefig(Path("figures") / "mortality28d.svg")
 
 print('\nDataset sizes:')
 print(f"train: {X_train.shape}, events: {y_train.value_counts().to_dict()}")
