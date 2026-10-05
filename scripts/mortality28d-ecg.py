@@ -1,7 +1,8 @@
 '''
 28-day mortality after an acute myocardial infarction, with and without the presenting ECG.
 
-Same cohort, label and tabular features (demographics, laboratory values) as scripts/mortality28d.py.
+Same cohort, label and tabular features (demographics, first laboratory values within the window) as
+scripts/mortality28d.py.
 Adds simple features computed from the first 12-lead ECG of the index admission (MIMIC-IV-ECG, window
 [-12 h, +24 h] around admission, see the 'modalities' section of config/mimic_iv_infarction.yaml):
 heart rate, RR variability and, per lead, the QRS amplitude and the ST deviation of the median beat
@@ -26,6 +27,7 @@ from sklearn.model_selection import StratifiedKFold, cross_validate
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
+from modules.features import first_in_window
 from modules.multimodal import add_modality, decode_records, get_modalities_from_config
 from modules.physionet_cohort import MIMICPatientCohort, get_schema_from_config
 from modules.zarr_tools import ZarrLoader
@@ -35,6 +37,8 @@ parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.R
 parser.add_argument('--config', default='config/mimic_iv_infarction.yaml')
 parser.add_argument('--zarr', default=str(Path('data') / 'cohort.zarr'), help='cohort store, built if missing')
 parser.add_argument('--tmp-dir', default=str(Path('data') / 'mimiciv-tmp'), help='downloaded MIMIC-IV tables')
+parser.add_argument('--plot-subject', type=int, default=None,
+                    help='subject_id of the ECG shown in figures/ecg_example.svg (default: first clean ECG)')
 args = parser.parse_args()
 config, zarr_path, tmp_dir = Path(args.config), args.zarr, args.tmp_dir
 modalities = get_modalities_from_config(config)
@@ -59,15 +63,19 @@ df = df.merge(df_social, on=['subject_id', 'hadm_id'], how='left')
 
 df["admittime"] = pd.to_datetime(df["admittime"])
 df["dod"] = pd.to_datetime(df["dod"], errors="coerce")
-days_to_death = (df["dod"] - df["admittime"]).dt.days
+# dod is a date (midnight): count calendar days from the admission day, so a death on the day of admission is day 0
+days_to_death = (df["dod"] - df["admittime"].dt.normalize()).dt.days
 df["mortality_28d"] = (df["dod"].notna() & days_to_death.between(0, 28)).astype(int)
 df = df.sort_values(by=['subject_id', 'admittime']).drop_duplicates('subject_id', keep='first')
 
+# first value of each lab within the ECG window around the index admission (matched by subject and time)
+window_h = modalities['ecg']['window']['hours']
 df_labs["value_num"] = pd.to_numeric(df_labs["valuenum"], errors="coerce")
-lab_agg = df_labs.groupby(["subject_id", "hadm_id", "itemid"])["value_num"].mean().unstack("itemid")
-lab_agg.columns = [f"lab_{int(itemid)}" for itemid in lab_agg.columns]
-lab_features = list(lab_agg.columns)
-df = df.merge(lab_agg.reset_index(), on=["subject_id", "hadm_id"], how="left")
+lab_first = first_in_window(df_labs, df[["subject_id"]].assign(anchor_time=df["admittime"]),
+                            "subject_id", "charttime", "itemid", "value_num", window_h)
+lab_first.columns = [f"lab_{int(itemid)}" for itemid in lab_first.columns]
+lab_features = list(lab_first.columns)
+df = df.merge(lab_first.reset_index(), on="subject_id", how="left")
 
 # --- ECG features: first valid ECG matched to the index admission ---
 def ecg_features(signal:np.ndarray, fs:int, leads:list[str])->dict:
@@ -114,6 +122,54 @@ df_ecg = pd.DataFrame(ecg_rows)
 ecg_features_cols = [c for c in df_ecg.columns if c.startswith("ecg_") and c != "ecg_offset_h"]
 df = df.merge(df_ecg, on="subject_id", how="left")
 
+# --- Figure: one presenting ECG as stored in the cohort, standard 3x4 + rhythm strip layout ---
+def plot_ecg(signal:np.ndarray, fs:int, leads:list[str], path:Path, title:str):
+    '''12-lead ECG (in mV) on ECG paper: 25 mm/s, 10 mm/mV, 2.5 s per lead column, lead II as rhythm strip.'''
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    signal = np.nan_to_num(signal - np.nanmedian(signal, axis=0))
+    b, a = butter(2, [0.5, 40], btype='band', fs=fs)               # same display band as ecg_features
+    x = filtfilt(b, a, signal, axis=0)
+    layout = [["I", "aVR", "V1", "V4"], ["II", "aVL", "V2", "V5"], ["III", "aVF", "V3", "V6"]]
+    seg, row_gap = int(2.5 * fs), 3.0                               # samples per column, mV between rows
+    fig, ax = plt.subplots(figsize=(10.5, 5.6))
+    for r, row in enumerate(layout + [["II"]]):
+        y0 = -r * row_gap
+        if r == 3:                                                  # rhythm strip: lead II, 10 s
+            ax.plot(np.arange(len(x)) / fs, x[:, leads.index("II")] + y0, color="#222222", lw=0.7)
+        for c, lead in enumerate(row if r < 3 else []):
+            ax.plot(c * 2.5 + np.arange(seg) / fs, x[c * seg:(c + 1) * seg, leads.index(lead)] + y0,
+                    color="#222222", lw=0.7)
+            if c:
+                ax.plot([c * 2.5] * 2, [y0 - 0.3, y0 + 0.3], color="#222222", lw=0.8)  # column separator
+        for c, lead in enumerate(row):
+            ax.text(c * 2.5 + 0.12, y0 + 0.75, lead, fontsize=9, weight="bold", color="#222222")
+    ax.set_xticks(np.arange(0, 10.001, 0.2)); ax.set_xticks(np.arange(0, 10.001, 0.04), minor=True)
+    ax.set_yticks(np.arange(-10.5, 1.501, 0.5)); ax.set_yticks(np.arange(-10.5, 1.501, 0.1), minor=True)
+    ax.grid(which="major", color="#f0a8a8", lw=0.5); ax.grid(which="minor", color="#fbe1e1", lw=0.25)
+    ax.tick_params(which="both", length=0, labelbottom=False, labelleft=False)
+    ax.set(xlim=(0, 10), ylim=(-10.5, 1.5), aspect=0.4)            # 1 mV = 10 mm, 1 s = 25 mm
+    for s in ax.spines.values():
+        s.set_visible(False)
+    ax.set_title(title, fontsize=10, loc="left")
+    ax.text(10, -10.45, "25 mm/s · 10 mm/mV · 0.5–40 Hz", fontsize=7, ha="right", va="bottom", color="#666666")
+    fig.tight_layout()
+    path.parent.mkdir(exist_ok=True)
+    fig.savefig(path.with_suffix(".svg")); fig.savefig(path.with_suffix(".png"), dpi=300)
+    plt.close(fig)
+
+if args.plot_subject is not None:
+    plot_row = first_ecg[first_ecg["subject_id"] == args.plot_subject].iloc[0]
+else:   # first ECG without missing samples and with a regular rate (illustration only, no clinical selection)
+    clean = df_ecg[df_ecg["ecg_hr"].between(55, 95) & (df_ecg["ecg_rr_std_ms"] < 50)]["subject_id"]
+    plot_row = next(r for r in first_ecg[first_ecg["subject_id"].isin(clean)].itertuples()
+                    if not np.isnan(decode_records(ecg["data"][r.row], attrs)).any())
+plot_ecg(decode_records(ecg["data"][plot_row.row], attrs), attrs["fs"], attrs["leads"],
+         Path("figures") / "ecg_example",
+         f"Presenting 12-lead ECG, {plot_row.offset_h:+.1f} h from admission (MIMIC-IV-ECG)")
+print(f"ECG figure: figures/ecg_example.svg (subject {plot_row.subject_id}, record row {plot_row.row})")
+
 has_ecg = df["ecg_offset_h"].notna()
 print(f"\nCohort: {len(df)} patients (1st MI admission), 28-day mortality {df['mortality_28d'].mean():.1%}.")
 print(f"ECG within [-12 h, +24 h] of admission: {has_ecg.sum()} patients ({has_ecg.mean():.1%}), "
@@ -135,8 +191,12 @@ def make_model(numeric_features):
     return Pipeline([('pre', preprocessor), ('model', LogisticRegression(max_iter=2000))])
 
 categorical_features = ['gender', 'marital_status']
+# ablation: having an ECG in the window is itself linked to mortality (see above). The "ECG available" model
+# only knows whether an ECG exists, so (ECG features - ECG available) is the gain carried by the signal itself.
+df["ecg_available"] = has_ecg.astype(int)
 feature_sets = {
     "demographics + labs": ['anchor_age'] + lab_features,
+    "demographics + labs + ECG available": ['anchor_age'] + lab_features + ['ecg_available'],
     "demographics + labs + ECG": ['anchor_age'] + lab_features + ecg_features_cols,
 }
 cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
@@ -147,11 +207,14 @@ for name, numeric in feature_sets.items():
     s = cross_validate(make_model(numeric), df[categorical_features + numeric], y, cv=cv,
                        scoring=['roc_auc', 'average_precision'])
     scores[name] = s
-    print(f"  {name:<27} AUC = {s['test_roc_auc'].mean():.3f} ± {s['test_roc_auc'].std():.3f}   "
+    print(f"  {name:<37} AUC = {s['test_roc_auc'].mean():.3f} ± {s['test_roc_auc'].std():.3f}   "
           f"AUPRC = {s['test_average_precision'].mean():.3f} ± {s['test_average_precision'].std():.3f}")
-delta = scores["demographics + labs + ECG"]['test_roc_auc'] - scores["demographics + labs"]['test_roc_auc']
-print(f"  AUC gain from the ECG (paired over folds): {delta.mean():+.3f} ± {delta.std():.3f}, "
-      f"positive in {(delta > 0).sum()}/5 folds")
+for label, a, b in [("ECG (total)", "demographics + labs + ECG", "demographics + labs"),
+                    ("ECG availability only", "demographics + labs + ECG available", "demographics + labs"),
+                    ("ECG signal (beyond availability)", "demographics + labs + ECG", "demographics + labs + ECG available")]:
+    delta = scores[a]['test_roc_auc'] - scores[b]['test_roc_auc']
+    print(f"  AUC gain, {label:<33} (paired over folds): {delta.mean():+.3f} ± {delta.std():.3f}, "
+          f"positive in {(delta > 0).sum()}/5 folds")
 
 # --- Most predictive ECG features (model fitted on the whole cohort, standardized coefficients) ---
 full = make_model(feature_sets["demographics + labs + ECG"]).fit(df[categorical_features + feature_sets["demographics + labs + ECG"]], y)

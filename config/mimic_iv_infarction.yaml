@@ -67,7 +67,8 @@ dataset:
       - name: ICDFilter
         parameters:
           diag_column: icd_code
-          icd_codes: ['I21*', 'I22*', '410*']   # ICD-10 acute + subsequent MI, ICD-9 AMI
+          # icd_codes: ['I21*', 'I22*', '410*']   # ICD-10 acute + subsequent MI, ICD-9 AMI
+          icd_codes: ['I21*']   # ICD-10 only initial mi
     processor:
       name: EHRDataFrameProcessor
   labs:

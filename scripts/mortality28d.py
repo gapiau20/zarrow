@@ -9,15 +9,18 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 
 
 from modules.physionet_cohort import MIMICPatientCohort,get_schema_from_config
+from modules.features import first_in_window
+from modules.multimodal import get_modalities_from_config
 import pandas as pd
 
 # --- Build cohort with filters ---
 from pathlib import Path
 
+config_path=Path('config/mimic_iv_infarction.yaml')
 tmp_dir=str(Path('data') / 'mimiciv-tmp')
 zarr_path=str(Path('data') / 'cohort.zarr')
 if not os.path.exists(zarr_path):
-    schema=get_schema_from_config(Path('config/mimic_iv_infarction.yaml'))
+    schema=get_schema_from_config(config_path)
     cohort=MIMICPatientCohort(tmp_dir,'subject_id',schema=schema)
     cohort.build_and_save(zarr_path)
 
@@ -52,29 +55,28 @@ df = df.merge(df_social, on=['subject_id', 'hadm_id'], how='left')
 
 df["admittime"] = pd.to_datetime(df["admittime"])
 df["dod"] = pd.to_datetime(df["dod"], errors="coerce")
-df["mortality_28d"] = (
-    (df["dod"].notna()) &
-    ((df["dod"] - df["admittime"]).dt.days <= 28)
-).astype(int)
+# dod is a date (midnight): count calendar days from the admission day, so a death on the day of admission is day 0
+days_to_death = (df["dod"] - df["admittime"].dt.normalize()).dt.days
+df["mortality_28d"] = (df["dod"].notna() & days_to_death.between(0, 28)).astype(int)
 
 # index admission = first MI admission of each patient (whole row, no column mixing)
 df = df.sort_values(by=['subject_id', 'admittime']).drop_duplicates('subject_id', keep='first')
 # race simplified for stratification and subgroup analysis
 df["race_simple"] = df["race"].astype(str).apply(lambda x: "WHITE" if "WHITE" in x.upper() else "NON_WHITE")
 
-# --- Laboratory features: mean value per lab item, for the indexed (first MI) admission ---
+# --- Laboratory features: first value per lab item within the window around the index admission ---
+# Same window as the ECG modality (config 'modalities.ecg.window.hours', -12 h..+24 h): the features describe the
+# presentation, not the whole stay. Matched by subject and time, so ED labs drawn before admission (no hadm_id) count.
 # LabEventFilter in the config already restricts df_labs to the monitored itemids.
 # Use 'valuenum' (MIMIC-IV's pre-parsed numeric field), not 'value': the latter is free text
 # and is largely non-numeric/masked ("___") for several of these itemids (NTproBNP...).
+window_h = get_modalities_from_config(config_path)['ecg']['window']['hours']
 df_labs["value_num"] = pd.to_numeric(df_labs["valuenum"], errors="coerce")
-lab_agg = (
-    df_labs.groupby(["subject_id", "hadm_id", "itemid"])["value_num"]
-    .mean()
-    .unstack("itemid")
-)
-lab_agg.columns = [f"lab_{int(itemid)}" for itemid in lab_agg.columns]
-lab_features = list(lab_agg.columns)
-df = df.merge(lab_agg.reset_index(), on=["subject_id", "hadm_id"], how="left")
+lab_first = first_in_window(df_labs, df[["subject_id"]].assign(anchor_time=df["admittime"]),
+                            "subject_id", "charttime", "itemid", "value_num", window_h)
+lab_first.columns = [f"lab_{int(itemid)}" for itemid in lab_first.columns]
+lab_features = list(lab_first.columns)
+df = df.merge(lab_first.reset_index(), on="subject_id", how="left")
 
 # --- Train/test split by patient, stratified ---
 # strata also include the (rare) outcome so that train and test keep the same event rate
@@ -138,8 +140,9 @@ auprc_global = average_precision_score(y_test, y_pred_global)
 brier_global = brier_score_loss(y_test, y_pred_global)
 
 lab_coverage = df[lab_features].notna().mean().mul(100).round(1)
-print(f"\nCohort: {len(df)} patients (1st MI admission), {len(lab_features)} laboratory tests aggregated.")
-print(f"Lab coverage on the index admission (% of patients with a value):\n{lab_coverage.to_string()}")
+print(f"\nCohort: {len(df)} patients (1st MI admission), 28-day mortality {df[target].mean():.1%}, "
+      f"{len(lab_features)} laboratory tests (first value within {window_h[0]:+} h..{window_h[1]:+} h of admission).")
+print(f"Lab coverage in the window (% of patients with a value):\n{lab_coverage.to_string()}")
 print(f"\nHeld-out 30% test set: AUC = {auc_global:.4f}  |  AUPRC = {auprc_global:.4f}  |  Brier score = {brier_global:.4f}")
 
 # --- Most predictive factors (global model coefficients, on standardized variables) ---
